@@ -1,0 +1,12 @@
+t = true
+f = false
+t = true
+true = true
+false = false
+answer = 42
+neganswer = -42
+a23 = 1_2_3
+a28 = +33
+"+33" = "test string"
+lit = "test string2"
+"こんにちは" = "世界"
