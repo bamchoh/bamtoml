@@ -12,6 +12,9 @@
 #include "node.h"
 #include "toml_str.h"
 
+void print_all_node(node *n);
+int toml_node_free(node *n);
+
 typedef struct toml_table {
 	int count;
 	char** k;
@@ -23,13 +26,19 @@ void add_kv_to_tbl(toml_table *tbl, char* k, node* v) {
 	node** vl;
 	int i;
 	if(tbl->count == 0) {
-		i = tbl->count++;
+		i = tbl->count;
+		tbl->count++;
 		kl = (char**)calloc(tbl->count, sizeof(char*));
 		vl = (node**)calloc(tbl->count, sizeof(node*));
 	} else {
-		i = tbl->count++;
-		kl = (char**)realloc(tbl->k, sizeof(char*) * tbl->count);
-		vl = (node**)realloc(tbl->v, sizeof(node*) * tbl->count);
+		i = tbl->count;
+		kl = (char**)calloc(i+1, sizeof(char*));
+		vl = (node**)calloc(i+1, sizeof(node*));
+		memcpy(kl, tbl->k, i*sizeof(char*));
+		memcpy(vl, tbl->v, i*sizeof(node*));
+		free(tbl->k);
+		free(tbl->v);
+		tbl->count++;
 	}
 	kl[i] = k;
 	vl[i] = v;
@@ -44,6 +53,9 @@ toml_table *toml_alloc_table() {
 
 node *toml_tbl_new() {
 	node *n = node_alloc();
+	if(n == NULL) {
+		return NULL;
+	}
 	n->type = TOML_TABLE;
 	n->value.p = toml_alloc_table();
 	return n;
@@ -51,6 +63,9 @@ node *toml_tbl_new() {
 
 node *root_node_new() {
 	node *n = toml_tbl_new();
+	if(n == NULL) {
+		return NULL;
+	}
 	n->type = TOML_ROOT;
 	return n;
 }
@@ -87,7 +102,7 @@ line    : '\n'
 				| expr '\n'
 				;
 expr    : key_lit '=' val_lit {
-					node *n = p->node_tree;
+				node *n = p->node_tree;
 					toml_table *tbl = (toml_table *)n->value.p;
 					toml_string *tmp1 = (toml_string *)$1->value.p;
 					add_kv_to_tbl(n->value.p, tmp1->s, $3);
@@ -99,10 +114,12 @@ key_lit : KEY_STRING
 				| tBOOL {
 					toml_string *s = toml_alloc_string();
 					if($1->value.i != 0) {
-						s->s = "true";
+						s->s = (char *)malloc(5 + sizeof(char));
+						strcpy(s->s, "true");
 						s->i = strlen(s->s);
 					} else {
-						s->s = "false";
+						s->s = (char *)malloc(6 + sizeof(char));
+						strcpy(s->s, "false");
 						s->i = strlen(s->s);
 					}
 					$1->type = TOML_STRING;
@@ -158,10 +175,14 @@ int parse_val_string(parser_state *p) {
 				break;
 		}
 		if(c == '"') {
-				toml_str_plus(p->current->value.p, c);
-				break;
+			if(toml_str_plus(p->current->value.p, c) == -1) {
+				return -2;
+			}
+			break;
 		}
-		toml_str_plus(p->current->value.p, c);
+		if(toml_str_plus(p->current->value.p, c) == -1) {
+			return -2;
+		}
 	}
 	return 0;
 }
@@ -180,7 +201,9 @@ int parse_key_string(parser_state *p) {
 		if(c == ' ') {
 			break;
 		}
-		toml_str_plus(p->current->value.p, c);
+		if(toml_str_plus(p->current->value.p, c) == -1) {
+			return -2;
+		}
 	}
 	return 0;
 }
@@ -201,7 +224,11 @@ int check_bool(parser_state *p) {
 			pushback(p,c);
 			break;
 		}
-		toml_str_plus(s,c);
+		if(toml_str_plus(s,c) == -1) {
+			p->count = pos;
+			free(s);
+			return -2;
+		}
 	}
 	if(strcmp(s->s, "true") == 0) {
 		node *n = node_alloc();
@@ -242,7 +269,11 @@ int check_integer(parser_state *p) {
 		}
 		if((c == '+' || c == '-') && i == 0) {
 			prevc = c;
-			toml_str_plus(s, c);
+			if(toml_str_plus(s, c) == -1) {
+				p->count = pos;
+				free(s);
+				return -2;
+			}
 			continue;
 		}
 		if(c == '_' && isdigit(prevc) != 0 && isdigit(peekc(p)) != 0) {
@@ -262,7 +293,11 @@ int check_integer(parser_state *p) {
 			}
 			found_dot = true;
 			prevc = c;
-			toml_str_plus(s, c);
+			if(toml_str_plus(s, c) == -1) {
+				p->count = pos;
+				free(s);
+				return -2;
+			}
 			continue;
 		}
 		if(isdigit(c) == 0) {
@@ -271,7 +306,11 @@ int check_integer(parser_state *p) {
 			return -1;
 		}
 		prevc = c;
-		toml_str_plus(s, c);
+		if(toml_str_plus(s, c) == -1) {
+			p->count = pos;
+			free(s);
+			return -2;
+		}
 	}
 	if(c == -1) {
 		pushback(p,c);
@@ -293,7 +332,7 @@ int check_integer(parser_state *p) {
 int yylex(parser_state *p) {
 	int c;
 retry:
-	c = nextc(p);
+		 c = nextc(p);
 	if(c == EOF) {
 		return 0;
 	}
@@ -305,22 +344,40 @@ retry:
 	}
 	if(c == '"') {
 		p->current = new_str();
-		toml_str_plus(p->current->value.p, c);
-		parse_val_string(p);
+		if(toml_str_plus(p->current->value.p, c) == -1) {
+			fprintf(stderr, "toml_str_plus error in parsing string lit.\n");
+			return 0;
+		}
+		if(parse_val_string(p) != 0) {
+			fprintf(stderr, "parse_val_string error in parsing string lit.\n");
+			return 0;
+		}
 		yylval = (node *)p->current;
 		return VAL_STRING;
 	}
 	if(c == 't' || c == 'f') {
 		pushback(p,c);
-		if(check_bool(p) == 0) {
+		int ret;
+		ret = check_bool(p);
+		if(ret == -2) {
+			fprintf(stderr, "check_bool error\n");
+			return 0;
+		}
+		if(ret == 0) {
 			yylval = p->current;
 			return tBOOL;
 		}
 		c = nextc(p);
 	}
-	if(c == '+' || c == '-' || isdigit(c) != 0) {
+	if(c == '+' || c == '-' || c == '.' || isdigit(c) != 0) {
 		pushback(p,c);
-		if(check_integer(p) == 0) {
+		int ret;
+		ret = check_integer(p);
+		if(ret == -2) {
+			fprintf(stderr, "check_integer error\n");
+			return 0;
+		}
+		if(ret == 0) {
 			yylval = p->current;
 			if(p->current->type == TOML_FLOAT) {
 				return tFLOAT;
@@ -335,8 +392,14 @@ retry:
 		(0x40 <= c && c <= 0x5A) ||
 		(0x61 <= c && c <= 0x7A)) {
 		p->current = new_str();
-		toml_str_plus(p->current->value.p, c);
-		parse_key_string(p);
+		if(toml_str_plus(p->current->value.p, c) == -1) {
+			fprintf(stderr, "toml_str_plus error in parsing key string.\n");
+			return 0;
+		}
+		if(parse_key_string(p) != 0) {
+			fprintf(stderr, "parse_key_string error in parsing parse_key_string.n");
+			return 0;
+		}
 		yylval = (node *)p->current;
 		return KEY_STRING;
 	}
@@ -365,6 +428,55 @@ int toml_parse(node *root, char* buf, int len) {
 	p.count = 0;
 	p.node_tree = root;
 	return(yyparse(&p));
+}
+
+int toml_node_free(node *n) {
+	switch(n->type) {
+		case TOML_STRING:
+			free(n->value.p);
+			break;
+	}
+	free(n);
+	return 0;
+}
+
+int toml_free(node *root) {
+	toml_table *tbl = (toml_table *)root->value.p;
+	for(int i = 0;i < tbl->count; i++) {
+		free(tbl->k[i]);
+		toml_node_free(tbl->v[i]);
+	}
+	free(tbl->k);
+	free(tbl->v);
+	free(tbl);
+	free(root);
+}
+
+void print_all_node(node *n) {
+	toml_table *tbl = (toml_table *)n->value.p;
+	printf("count : %d\n", tbl->count);
+	for(int i = 0; i < tbl->count; i++) {
+		switch(tbl->v[i]->type) {
+			case TOML_STRING: {
+				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
+				printf("  [TOML_STR  ]%s = %s\n", tbl->k[i], tmp2->s);
+				break;
+			}
+			case TOML_BOOL:
+				if(tbl->v[i]->value.i == 0) {
+					printf("  [TOML_BOOL ]%s = false\n", tbl->k[i]);
+				} else {
+					printf("  [TOML_BOOL ]%s = true\n", tbl->k[i]);
+				}
+				break;
+			case TOML_INT:
+				printf("  [TOML_INT  ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
+				break;
+			case TOML_FLOAT:
+				printf("  [TOML_FLOAT]%s = %lf\n", tbl->k[i], tbl->v[i]->value.f);
+				break;
+		}
+	}
 }
 
 int main(int argc, char* argv[])
@@ -404,41 +516,22 @@ int main(int argc, char* argv[])
 		buffer[i] = c;
 	}
 	_close(fd);
-	node *root;
-	int ret;
-	ret = toml_init(&root);
-	if(ret == -1) {
-		fprintf(stderr, "toml_init error\n");
-		return -1;
-	}
-	ret = toml_parse(root, buffer, strlen(buffer));
-	if(ret == -1) {
-		fprintf(stderr, "toml_parse error\n");
-		return -1;
-	}
-	node *n = root;
-	toml_table *tbl = (toml_table *)n->value.p;
-	printf("count : %d\n", tbl->count);
-	for(int i = 0; i < tbl->count; i++) {
-		switch(tbl->v[i]->type) {
-			case TOML_STRING: {
-				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-				printf("  [TOML_STR  ]%s = %s\n", tbl->k[i], tmp2->s);
-				break;
-			}
-			case TOML_BOOL:
-				if(tbl->v[i]->value.i == 0) {
-					printf("  [TOML_BOOL ]%s = false\n", tbl->k[i]);
-				} else {
-					printf("  [TOML_BOOL ]%s = true\n", tbl->k[i]);
-				}
-				break;
-			case TOML_INT:
-				printf("  [TOML_INT  ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
-			case TOML_FLOAT:
-				printf("  [TOML_FLOAT]%s = %lf\n", tbl->k[i], tbl->v[i]->value.f);
+	for(int i = 0; i < 100000;i++) {
+		node *root;
+		int ret;
+		ret = toml_init(&root);
+		if(ret == -1) {
+			fprintf(stderr, "toml_init error\n");
+			return -1;
 		}
+		ret = toml_parse(root, buffer, strlen(buffer));
+		if(ret == -1) {
+			fprintf(stderr, "toml_parse error\n");
+			return -1;
+		}
+		// print_all_node(root);
+		toml_free(root);
 	}
-	
-	return 0;
+
+return 0;
 }

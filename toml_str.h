@@ -10,6 +10,6 @@ typedef struct toml_string {
 
 toml_string *toml_alloc_string();
 node* new_str();
-void toml_str_plus(toml_string *p, char c);
+int toml_str_plus(toml_string *p, char c);
 
 #endif
