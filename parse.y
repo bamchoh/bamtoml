@@ -321,6 +321,23 @@ void yyerror(parser_state *p, const char* s)
 	fprintf(stderr, "error: %s\n", s);
 }
 
+int toml_init(node **root) {
+	node *n = root_node_new();
+	if(n == NULL) {
+		return -1;
+	}
+	*root = n;
+	return 0;
+}
+
+int toml_parse(node *root, char* buf, int len) {
+	parser_state p;
+	p.buffer = buf;
+	p.count = 0;
+	p.node_tree = root;
+	return(yyparse(&p));
+}
+
 int main(int argc, char* argv[])
 {
 	// yydebug = 1;
@@ -358,34 +375,39 @@ int main(int argc, char* argv[])
 		buffer[i] = c;
 	}
 	_close(fd);
-	parser_state p;
-	p.buffer = buffer;
-	p.count = 0;
-	p.node_tree = root_node_new();
+	node *root;
 	int ret;
-	ret = yyparse(&p);
-	if(ret == 0) {
-		node *n = p.node_tree;
-		toml_table *tbl = (toml_table *)n->value.p;
-		printf("count : %d\n", tbl->count);
-		for(int i = 0; i < tbl->count; i++) {
-			switch(tbl->v[i]->type) {
-				case TOML_STRING: {
-					toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-					printf("  [TOML_STR ]%s = %s\n", tbl->k[i], tmp2->s);
-					break;
-				}
-				case TOML_BOOL:
-					if(tbl->v[i]->value.i == 0) {
-						printf("  [TOML_BOOL]%s = false\n", tbl->k[i]);
-					} else {
-						printf("  [TOML_BOOL]%s = true\n", tbl->k[i]);
-					}
-					break;
-				case TOML_INT:
-					printf("  [TOML_INT ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
+	ret = toml_init(&root);
+	if(ret == -1) {
+		fprintf(stderr, "toml_init error\n");
+		return -1;
+	}
+	ret = toml_parse(root, buffer, strlen(buffer));
+	if(ret == -1) {
+		fprintf(stderr, "toml_parse error\n");
+		return -1;
+	}
+	node *n = root;
+	toml_table *tbl = (toml_table *)n->value.p;
+	printf("count : %d\n", tbl->count);
+	for(int i = 0; i < tbl->count; i++) {
+		switch(tbl->v[i]->type) {
+			case TOML_STRING: {
+				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
+				printf("  [TOML_STR ]%s = %s\n", tbl->k[i], tmp2->s);
+				break;
 			}
+			case TOML_BOOL:
+				if(tbl->v[i]->value.i == 0) {
+					printf("  [TOML_BOOL]%s = false\n", tbl->k[i]);
+				} else {
+					printf("  [TOML_BOOL]%s = true\n", tbl->k[i]);
+				}
+				break;
+			case TOML_INT:
+				printf("  [TOML_INT ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
 		}
 	}
+	
 	return 0;
 }
