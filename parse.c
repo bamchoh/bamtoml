@@ -169,7 +169,8 @@ extern int yydebug;
     KEY_STRING = 258,
     VAL_STRING = 259,
     tINT = 260,
-    tBOOL = 261
+    tBOOL = 261,
+    tFLOAT = 262
   };
 #endif
 
@@ -189,7 +190,7 @@ int yyparse (parser_state *p);
 
 /* Copy the second part of user declarations.  */
 
-#line 193 "parse.c" /* yacc.c:358  */
+#line 194 "parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -431,21 +432,21 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   11
+#define YYLAST   12
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  9
+#define YYNTOKENS  10
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  6
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  13
+#define YYNRULES  14
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  17
+#define YYNSTATES  18
 
 /* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
    by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   261
+#define YYMAXUTOK   262
 
 #define YYTRANSLATE(YYX)                                                \
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -455,12 +456,12 @@ union yyalloc
 static const yytype_uint8 yytranslate[] =
 {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       7,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       8,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     8,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     9,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -480,15 +481,15 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
-       5,     6
+       5,     6,     7
 };
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    82,    82,    83,    85,    86,    88,    95,    96,    97,
-      98,   111,   112,   113
+       0,    83,    83,    84,    86,    87,    89,    96,    97,    98,
+      99,   112,   113,   114,   115
 };
 #endif
 
@@ -498,8 +499,8 @@ static const yytype_uint8 yyrline[] =
 static const char *const yytname[] =
 {
   "$end", "error", "$undefined", "KEY_STRING", "VAL_STRING", "tINT",
-  "tBOOL", "'\\n'", "'='", "$accept", "program", "line", "expr", "key_lit",
-  "val_lit", YY_NULLPTR
+  "tBOOL", "tFLOAT", "'\\n'", "'='", "$accept", "program", "line", "expr",
+  "key_lit", "val_lit", YY_NULLPTR
 };
 #endif
 
@@ -508,14 +509,14 @@ static const char *const yytname[] =
    (internal) symbol number NUM (which must be that of a token).  */
 static const yytype_uint16 yytoknum[] =
 {
-       0,   256,   257,   258,   259,   260,   261,    10,    61
+       0,   256,   257,   258,   259,   260,   261,   262,    10,    61
 };
 # endif
 
-#define YYPACT_NINF -7
+#define YYPACT_NINF -8
 
 #define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-7)))
+  (!!((Yystate) == (-8)))
 
 #define YYTABLE_NINF -1
 
@@ -526,8 +527,8 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-      -7,     0,    -7,    -7,    -7,    -7,    -7,    -7,    -7,    -6,
-       3,    -7,     4,    -7,    -7,    -7,    -7
+      -8,     0,    -8,    -8,    -8,    -8,    -8,    -8,    -8,    -7,
+      -2,    -8,     5,    -8,    -8,    -8,    -8,    -8
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -536,19 +537,19 @@ static const yytype_int8 yypact[] =
 static const yytype_uint8 yydefact[] =
 {
        2,     0,     1,     7,     8,     9,    10,     4,     3,     0,
-       0,     5,     0,    11,    12,    13,     6
+       0,     5,     0,    11,    12,    13,    14,     6
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-      -7,    -7,    -7,    -7,    -7,    -7
+      -8,    -8,    -8,    -8,    -8,    -8
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-      -1,     1,     8,     9,    10,    16
+      -1,     1,     8,     9,    10,    17
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -556,36 +557,36 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_uint8 yytable[] =
 {
-       2,    11,     0,     3,     4,     5,     6,     7,    13,    14,
-      15,    12
+       2,    11,     0,     3,     4,     5,     6,    12,     7,    13,
+      14,    15,    16
 };
 
 static const yytype_int8 yycheck[] =
 {
-       0,     7,    -1,     3,     4,     5,     6,     7,     4,     5,
-       6,     8
+       0,     8,    -1,     3,     4,     5,     6,     9,     8,     4,
+       5,     6,     7
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    10,     0,     3,     4,     5,     6,     7,    11,    12,
-      13,     7,     8,     4,     5,     6,    14
+       0,    11,     0,     3,     4,     5,     6,     8,    12,    13,
+      14,     8,     9,     4,     5,     6,     7,    15
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,     9,    10,    10,    11,    11,    12,    13,    13,    13,
-      13,    14,    14,    14
+       0,    10,    11,    11,    12,    12,    13,    14,    14,    14,
+      14,    15,    15,    15,    15
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
        0,     2,     0,     2,     1,     2,     3,     1,     1,     1,
-       1,     1,     1,     1
+       1,     1,     1,     1,     1
 };
 
 
@@ -1264,18 +1265,18 @@ yyreduce:
   switch (yyn)
     {
         case 6:
-#line 88 "parse.y" /* yacc.c:1646  */
+#line 89 "parse.y" /* yacc.c:1646  */
     {
 					node *n = p->node_tree;
 					toml_table *tbl = (toml_table *)n->value.p;
 					toml_string *tmp1 = (toml_string *)(yyvsp[-2])->value.p;
 					add_kv_to_tbl(n->value.p, tmp1->s, (yyvsp[0]));
 				}
-#line 1275 "parse.c" /* yacc.c:1646  */
+#line 1276 "parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 98 "parse.y" /* yacc.c:1646  */
+#line 99 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *s = toml_alloc_string();
 					if((yyvsp[0])->value.i != 0) {
@@ -1288,11 +1289,11 @@ yyreduce:
 					(yyvsp[0])->type = TOML_STRING;
 					(yyvsp[0])->value.p = s;
 				}
-#line 1292 "parse.c" /* yacc.c:1646  */
+#line 1293 "parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 1296 "parse.c" /* yacc.c:1646  */
+#line 1297 "parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1520,7 +1521,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 118 "parse.y" /* yacc.c:1906  */
+#line 120 "parse.y" /* yacc.c:1906  */
 
 
 int nextc(parser_state *p) {
@@ -1537,6 +1538,17 @@ int nextc(parser_state *p) {
 
 void pushback(parser_state *p, char c) {
 	p->count--;
+}
+
+int peekc(parser_state *p) {
+	int c;
+	if(strlen(p->buffer) > p->count) {
+		c = p->buffer[p->count];
+		if(c != 0) {
+			return c;
+		}
+	}
+	return EOF;
 }
 
 int parse_val_string(parser_state *p) {
@@ -1622,28 +1634,40 @@ int check_integer(parser_state *p) {
 	char prevc = -1;
 	char c;
 	int pos = p->count;
+	bool found_dot = false;
 	for(int i = 0;(c = nextc(p)) != -1;i++) {
 		if(is_term(c)) {
 			pushback(p, c);
 			break;
+		}
+		if((c == '0' || c == '_' || c == '.' ) && i == 0) {
+			p->count = pos;
+			free(s);
+			return -1;
 		}
 		if((c == '+' || c == '-') && i == 0) {
 			prevc = c;
 			toml_str_plus(s, c);
 			continue;
 		}
-		if(c == '0' && i == 0) {
-			p->count = pos;
-			free(s);
-			return -1;
-		}
-		if(c == '_' && i == 0) {
-			p->count = pos;
-			free(s);
-			return -1;
-		}
-		if(c == '_' && isdigit(prevc) != 0) {
+		if(c == '_' && isdigit(prevc) != 0 && isdigit(peekc(p)) != 0) {
 			prevc = c;
+			continue;
+		}
+		if(c == '_') {
+			p->count = pos;
+			free(s);
+			return -1;
+		}
+		if(c == '.') {
+			if(found_dot == true) {
+				p->count = pos;
+				free(s);
+				return -1;
+			}
+			found_dot = true;
+			prevc = c;
+			toml_str_plus(s, c);
 			continue;
 		}
 		if(isdigit(c) == 0) {
@@ -1654,17 +1678,17 @@ int check_integer(parser_state *p) {
 		prevc = c;
 		toml_str_plus(s, c);
 	}
-	if(prevc == '_') {
-		p->count = pos;
-		free(s);
-		return -1;
-	}
 	if(c == -1) {
 		pushback(p,c);
 	}
 	node *n = node_alloc();
-	n->type = TOML_INT;
-	n->value.i = atol(s->s);
+	if(found_dot == true) {
+		n->type = TOML_FLOAT;
+		n->value.f = atof(s->s);
+	} else {
+		n->type = TOML_INT;
+		n->value.i = atol(s->s);
+	}
 	p->current = n;
 	free(s);
 	return 0;
@@ -1703,7 +1727,11 @@ retry:
 		pushback(p,c);
 		if(check_integer(p) == 0) {
 			yylval = p->current;
-			return tINT;
+			if(p->current->type == TOML_FLOAT) {
+				return tFLOAT;
+			} else {
+				return tINT;
+			}
 		}
 		c = nextc(p);
 	}
@@ -1800,18 +1828,20 @@ int main(int argc, char* argv[])
 		switch(tbl->v[i]->type) {
 			case TOML_STRING: {
 				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-				printf("  [TOML_STR ]%s = %s\n", tbl->k[i], tmp2->s);
+				printf("  [TOML_STR  ]%s = %s\n", tbl->k[i], tmp2->s);
 				break;
 			}
 			case TOML_BOOL:
 				if(tbl->v[i]->value.i == 0) {
-					printf("  [TOML_BOOL]%s = false\n", tbl->k[i]);
+					printf("  [TOML_BOOL ]%s = false\n", tbl->k[i]);
 				} else {
-					printf("  [TOML_BOOL]%s = true\n", tbl->k[i]);
+					printf("  [TOML_BOOL ]%s = true\n", tbl->k[i]);
 				}
 				break;
 			case TOML_INT:
-				printf("  [TOML_INT ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
+				printf("  [TOML_INT  ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
+			case TOML_FLOAT:
+				printf("  [TOML_FLOAT]%s = %lf\n", tbl->k[i], tbl->v[i]->value.f);
 		}
 	}
 	

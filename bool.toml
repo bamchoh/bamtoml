@@ -9,4 +9,5 @@ a23 = 1_2_3
 a28 = +33
 "+33" = "test string"
 lit = "test string2"
-"こんにちは" = "世界"
+float = 1.234
+float2 = 12.34

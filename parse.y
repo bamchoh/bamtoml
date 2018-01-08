@@ -74,6 +74,7 @@ int yyparse(parser_state *p);
 %token VAL_STRING
 %token tINT
 %token tBOOL
+%token tFLOAT
 %parse-param {parser_state *p}
 %lex-param {parser_state *p}
 
@@ -111,6 +112,7 @@ key_lit : KEY_STRING
 val_lit : VAL_STRING
 				| tINT
 				| tBOOL
+				| tFLOAT
 				;
 
 ;
@@ -131,6 +133,17 @@ int nextc(parser_state *p) {
 
 void pushback(parser_state *p, char c) {
 	p->count--;
+}
+
+int peekc(parser_state *p) {
+	int c;
+	if(strlen(p->buffer) > p->count) {
+		c = p->buffer[p->count];
+		if(c != 0) {
+			return c;
+		}
+	}
+	return EOF;
 }
 
 int parse_val_string(parser_state *p) {
@@ -216,28 +229,40 @@ int check_integer(parser_state *p) {
 	char prevc = -1;
 	char c;
 	int pos = p->count;
+	bool found_dot = false;
 	for(int i = 0;(c = nextc(p)) != -1;i++) {
 		if(is_term(c)) {
 			pushback(p, c);
 			break;
+		}
+		if((c == '0' || c == '_' || c == '.' ) && i == 0) {
+			p->count = pos;
+			free(s);
+			return -1;
 		}
 		if((c == '+' || c == '-') && i == 0) {
 			prevc = c;
 			toml_str_plus(s, c);
 			continue;
 		}
-		if(c == '0' && i == 0) {
-			p->count = pos;
-			free(s);
-			return -1;
-		}
-		if(c == '_' && i == 0) {
-			p->count = pos;
-			free(s);
-			return -1;
-		}
-		if(c == '_' && isdigit(prevc) != 0) {
+		if(c == '_' && isdigit(prevc) != 0 && isdigit(peekc(p)) != 0) {
 			prevc = c;
+			continue;
+		}
+		if(c == '_') {
+			p->count = pos;
+			free(s);
+			return -1;
+		}
+		if(c == '.') {
+			if(found_dot == true) {
+				p->count = pos;
+				free(s);
+				return -1;
+			}
+			found_dot = true;
+			prevc = c;
+			toml_str_plus(s, c);
 			continue;
 		}
 		if(isdigit(c) == 0) {
@@ -248,17 +273,17 @@ int check_integer(parser_state *p) {
 		prevc = c;
 		toml_str_plus(s, c);
 	}
-	if(prevc == '_') {
-		p->count = pos;
-		free(s);
-		return -1;
-	}
 	if(c == -1) {
 		pushback(p,c);
 	}
 	node *n = node_alloc();
-	n->type = TOML_INT;
-	n->value.i = atol(s->s);
+	if(found_dot == true) {
+		n->type = TOML_FLOAT;
+		n->value.f = atof(s->s);
+	} else {
+		n->type = TOML_INT;
+		n->value.i = atol(s->s);
+	}
 	p->current = n;
 	free(s);
 	return 0;
@@ -297,7 +322,11 @@ retry:
 		pushback(p,c);
 		if(check_integer(p) == 0) {
 			yylval = p->current;
-			return tINT;
+			if(p->current->type == TOML_FLOAT) {
+				return tFLOAT;
+			} else {
+				return tINT;
+			}
 		}
 		c = nextc(p);
 	}
@@ -394,18 +423,20 @@ int main(int argc, char* argv[])
 		switch(tbl->v[i]->type) {
 			case TOML_STRING: {
 				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-				printf("  [TOML_STR ]%s = %s\n", tbl->k[i], tmp2->s);
+				printf("  [TOML_STR  ]%s = %s\n", tbl->k[i], tmp2->s);
 				break;
 			}
 			case TOML_BOOL:
 				if(tbl->v[i]->value.i == 0) {
-					printf("  [TOML_BOOL]%s = false\n", tbl->k[i]);
+					printf("  [TOML_BOOL ]%s = false\n", tbl->k[i]);
 				} else {
-					printf("  [TOML_BOOL]%s = true\n", tbl->k[i]);
+					printf("  [TOML_BOOL ]%s = true\n", tbl->k[i]);
 				}
 				break;
 			case TOML_INT:
-				printf("  [TOML_INT ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
+				printf("  [TOML_INT  ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
+			case TOML_FLOAT:
+				printf("  [TOML_FLOAT]%s = %lf\n", tbl->k[i], tbl->v[i]->value.f);
 		}
 	}
 	

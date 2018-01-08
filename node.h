@@ -10,12 +10,14 @@ typedef enum {
 	TOML_STRING,
   TOML_BOOL,
 	TOML_INT,
+	TOML_FLOAT,
 	TOML_UNDEF = -1,
 } node_type;
 
 typedef struct node {
 	union {
 		long i;
+		double f;
 		void *p;
 	} value;
 	node_type type;
