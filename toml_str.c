@@ -11,6 +11,11 @@ toml_string *toml_alloc_string() {
 	return str;
 }
 
+void toml_string_free(toml_string *s) {
+	free(s->s);
+	free(s);
+}
+
 node* new_str() {
   node *n = node_alloc();
 	if(n == NULL) {

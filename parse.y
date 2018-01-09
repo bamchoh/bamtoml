@@ -77,59 +77,6 @@ int yylex(parser_state *p);
 void yyerror(parser_state *p, const char* s);
 int yyparse(parser_state *p);
 
-%}
-
-%token KEY_STRING
-%token VAL_STRING
-%token tINT
-%token tBOOL
-%token tFLOAT
-%parse-param {parser_state *p}
-%lex-param {parser_state *p}
-
-%%
-
-program : /* empty */
-				| program line
-				;
-line    : '\n'
-				| expr '\n'
-				;
-expr    : key_lit '=' val_lit {
-					node *n = p->node_tree;
-					toml_table *tbl = (toml_table *)n->value.p;
-					toml_string *tmp1 = (toml_string *)$1->value.p;
-					add_kv_to_tbl(n->value.p, tmp1->s, $3);
-				}
-				;
-key_lit : KEY_STRING
-				| VAL_STRING
-				| tINT
-				| tBOOL {
-					toml_string *s = toml_alloc_string();
-					if($1->value.i != 0) {
-						s->s = (char *)malloc(5 + sizeof(char));
-						memcpy(s->s, "true", 5);
-						s->i = strlen(s->s);
-					} else {
-						s->s = (char *)malloc(6 + sizeof(char));
-						memcpy(s->s, "false", 6);
-						s->i = strlen(s->s);
-					}
-					$1->type = TOML_STRING;
-					$1->value.p = s;
-				}
-				;
-val_lit : VAL_STRING
-				| tINT
-				| tBOOL
-				| tFLOAT
-				;
-
-;
-
-%%
-
 int nextc(parser_state *p) {
 	int c;
 	if(strlen(p->buffer) > p->count) {
@@ -220,7 +167,7 @@ int check_bool(parser_state *p) {
 		}
 		if(toml_str_plus(s,c) == -1) {
 			p->count = pos;
-			free(s);
+			toml_string_free(s);
 			return -2;
 		}
 	}
@@ -229,7 +176,7 @@ int check_bool(parser_state *p) {
 		n->type = TOML_BOOL;
 		n->value.i = -1;
 		p->current = n;
-		free(s);
+		toml_string_free(s);
 		return 0;
 	}
 	if(strcmp(s->s, "false") == 0) {
@@ -237,11 +184,11 @@ int check_bool(parser_state *p) {
 		n->type = TOML_BOOL;
 		n->value.i = 0;
 		p->current = n;
-		free(s);
+		toml_string_free(s);
 		return 0;
 	}
 	p->count = pos;
-	free(s);
+	toml_string_free(s);
 	return -1;
 }
 
@@ -258,14 +205,14 @@ int check_integer(parser_state *p) {
 		}
 		if((c == '0' || c == '_' || c == '.' ) && i == 0) {
 			p->count = pos;
-			free(s);
+			toml_string_free(s);
 			return -1;
 		}
 		if((c == '+' || c == '-') && i == 0) {
 			prevc = c;
 			if(toml_str_plus(s, c) == -1) {
 				p->count = pos;
-				free(s);
+				toml_string_free(s);
 				return -2;
 			}
 			continue;
@@ -276,33 +223,33 @@ int check_integer(parser_state *p) {
 		}
 		if(c == '_') {
 			p->count = pos;
-			free(s);
+			toml_string_free(s);
 			return -1;
 		}
 		if(c == '.') {
 			if(found_dot == true) {
 				p->count = pos;
-				free(s);
+				toml_string_free(s);
 				return -1;
 			}
 			found_dot = true;
 			prevc = c;
 			if(toml_str_plus(s, c) == -1) {
 				p->count = pos;
-				free(s);
+				toml_string_free(s);
 				return -2;
 			}
 			continue;
 		}
 		if(isdigit(c) == 0) {
 			p->count = pos;
-			free(s);
+			toml_string_free(s);
 			return -1;
 		}
 		prevc = c;
 		if(toml_str_plus(s, c) == -1) {
 			p->count = pos;
-			free(s);
+			toml_string_free(s);
 			return -2;
 		}
 	}
@@ -318,9 +265,63 @@ int check_integer(parser_state *p) {
 		n->value.i = atol(s->s);
 	}
 	p->current = n;
-	free(s);
+	toml_string_free(s);
 	return 0;
 }
+
+%}
+
+%token KEY_STRING
+%token VAL_STRING
+%token tINT
+%token tBOOL
+%token tFLOAT
+%parse-param {parser_state *p}
+%lex-param {parser_state *p}
+
+%%
+
+program : /* empty */
+				| program line
+				;
+line    : '\n'
+				| expr '\n'
+				;
+expr    : key_lit '=' val_lit {
+					toml_string *str = $1->value.p;
+					add_kv_to_tbl(p->node_tree->value.p, str->s, $3);
+					free(str);
+					free($1);
+				}
+				;
+key_lit : KEY_STRING
+				| VAL_STRING
+				| tINT
+				| tBOOL {
+					toml_string *s = toml_alloc_string();
+					if($1->value.i != 0) {
+						s->s = (char *)malloc(5 + sizeof(char));
+						memcpy(s->s, "true", 5);
+						s->i = strlen(s->s);
+					} else {
+						s->s = (char *)malloc(6 + sizeof(char));
+						memcpy(s->s, "false", 6);
+						s->i = strlen(s->s);
+					}
+					$1->type = TOML_STRING;
+					$1->value.p = s;
+				}
+				;
+val_lit : VAL_STRING
+				| tINT
+				| tBOOL
+				| tFLOAT
+				;
+
+;
+
+%%
+
 
 /* トークン解析関数 */
 int yylex(parser_state *p) {
@@ -427,7 +428,7 @@ int toml_parse(node *root, char* buf, int len) {
 int toml_node_free(node *n) {
 	switch(n->type) {
 		case TOML_STRING:
-			free(n->value.p);
+			toml_string_free(n->value.p);
 			break;
 	}
 	free(n);

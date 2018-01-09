@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 	}
 	buffer[file_size] = '\0';
 	fclose(fp);
-	for(int i = 0; i < 1;i++) {
+	for(int i = 0; i < 10000000;i++) {
 		node *root;
 		int ret;
 		ret = toml_init(&root);
@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
 			fprintf(stderr, "toml_parse error\n");
 			return -1;
 		}
-		print_all_node(root);
+		// print_all_node(root);
 		toml_free(root);
 	}
 
