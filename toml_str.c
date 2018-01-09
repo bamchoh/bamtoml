@@ -33,6 +33,7 @@ int toml_str_plus(toml_string *str, char c) {
 	new_s[len] = '\0';
 	str->i = len;
 	str->s = new_s;
+	return 0;
 }
 
 

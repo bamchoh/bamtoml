@@ -11,6 +11,10 @@
 #include "toml_tbl.h"
 #include "toml.h"
 
+#ifndef _WIN32
+#define _fdopen fdopen
+#endif
+
 void print_all_node(node *n) {
 	toml_table *tbl = (toml_table *)n->value.p;
 	printf("count : %d\n", tbl->count);
@@ -40,9 +44,9 @@ void print_all_node(node *n) {
 
 int main(int argc, char* argv[])
 {
-	// yydebug = 1;
 	if(argc <= 1) {
 		fprintf(stderr, "file name is needed\n");
+		exit(1);
 	}
 	FILE *fp;
 	long file_size;
@@ -54,11 +58,6 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "open error\n");
 		exit(1);
 	}
-	fp = fdopen(fd, "rb");
-	if(fp == NULL) {
-		fprintf(stderr, "fdopen error\n");
-		exit(1);
-	}
 	int result;
 	result = _fstat(fd, &stbuf);
 	if(result != 0) {
@@ -66,15 +65,23 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 	file_size = stbuf.st_size;
-	buffer = (char*)calloc(file_size, sizeof(char));
+	_close(fd);
+	buffer = (char*)calloc(file_size+1, sizeof(char));
 	if (buffer == NULL) {
 		fprintf(stderr, "malloc error\n");
+		exit(1);
+	}
+	errno_t err;
+	err = fopen_s(&fp, argv[1], "rb");
+	if(err != 0) {
+		fprintf(stderr, "fdopen error\n");
 		exit(1);
 	}
 	for(int i = 0; (c = fgetc(fp)) != -1; i++) {
 		buffer[i] = c;
 	}
-	_close(fd);
+	buffer[file_size] = '\0';
+	fclose(fp);
 	for(int i = 0; i < 1;i++) {
 		node *root;
 		int ret;

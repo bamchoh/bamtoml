@@ -66,7 +66,7 @@ node *root_node_new() {
 
 typedef struct toml_parser_state {
 	char* buffer;
-	int count;
+	unsigned int count;
 	node* node_tree;
 	node* current;
 } parser_state;
@@ -96,7 +96,7 @@ line    : '\n'
 				| expr '\n'
 				;
 expr    : key_lit '=' val_lit {
-				node *n = p->node_tree;
+					node *n = p->node_tree;
 					toml_table *tbl = (toml_table *)n->value.p;
 					toml_string *tmp1 = (toml_string *)$1->value.p;
 					add_kv_to_tbl(n->value.p, tmp1->s, $3);
@@ -109,11 +109,11 @@ key_lit : KEY_STRING
 					toml_string *s = toml_alloc_string();
 					if($1->value.i != 0) {
 						s->s = (char *)malloc(5 + sizeof(char));
-						strcpy(s->s, "true");
+						memcpy(s->s, "true", 5);
 						s->i = strlen(s->s);
 					} else {
 						s->s = (char *)malloc(6 + sizeof(char));
-						strcpy(s->s, "false");
+						memcpy(s->s, "false", 6);
 						s->i = strlen(s->s);
 					}
 					$1->type = TOML_STRING;
@@ -202,8 +202,8 @@ int parse_key_string(parser_state *p) {
 	return 0;
 }
 
-int is_term(char c) {
-	if(c == ' ' || c == '\n') {
+int is_term(parser_state *p, char c) {
+	if(c == ' ' || c == '\n' || (c == '\r' && peekc(p) == '\n')) {
 		return -1;
 	}
 	return 0;
@@ -214,7 +214,7 @@ int check_bool(parser_state *p) {
 	int pos = p->count;
 	char c;
 	for(int i = 0;(c = nextc(p)) != -1;i++) {
-		if(is_term(c)) {
+		if(is_term(p,c)) {
 			pushback(p,c);
 			break;
 		}
@@ -252,7 +252,7 @@ int check_integer(parser_state *p) {
 	int pos = p->count;
 	bool found_dot = false;
 	for(int i = 0;(c = nextc(p)) != -1;i++) {
-		if(is_term(c)) {
+		if(is_term(p,c)) {
 			pushback(p, c);
 			break;
 		}
@@ -330,7 +330,7 @@ retry:
 	if(c == EOF) {
 		return 0;
 	}
-	if(c == ' ') {
+	if(c == ' ' || (c == '\r' && peekc(p) == '\n')) {
 		goto retry;
 	}
 	if(c == '=' || c == '\n') {
