@@ -68,23 +68,17 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <io.h>
-#include <sys/stat.h>
+// #include <fcntl.h>
+// #include <io.h>
+// #include <sys/stat.h>
 #include <ctype.h>
-#include <math.h>
-#include <share.h>
-#include "node.h"
+// #include <math.h>
+// #include <share.h>
+#include "toml_tbl.h"
 #include "toml_str.h"
+#include "toml.h"
 
-void print_all_node(node *n);
 int toml_node_free(node *n);
-
-typedef struct toml_table {
-	int count;
-	char** k;
-	node** v;
-} toml_table;
 
 void add_kv_to_tbl(toml_table *tbl, char* k, node* v) {
 	char** kl;
@@ -149,7 +143,7 @@ void yyerror(parser_state *p, const char* s);
 int yyparse(parser_state *p);
 
 
-#line 153 "parse.c" /* yacc.c:339  */
+#line 147 "parse.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -205,7 +199,7 @@ int yyparse (parser_state *p);
 
 /* Copy the second part of user declarations.  */
 
-#line 209 "parse.c" /* yacc.c:358  */
+#line 203 "parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -503,8 +497,8 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    98,    98,    99,   101,   102,   104,   111,   112,   113,
-     114,   129,   130,   131,   132
+       0,    92,    92,    93,    95,    96,    98,   105,   106,   107,
+     108,   123,   124,   125,   126
 };
 #endif
 
@@ -1280,18 +1274,18 @@ yyreduce:
   switch (yyn)
     {
         case 6:
-#line 104 "parse.y" /* yacc.c:1646  */
+#line 98 "parse.y" /* yacc.c:1646  */
     {
 				node *n = p->node_tree;
 					toml_table *tbl = (toml_table *)n->value.p;
 					toml_string *tmp1 = (toml_string *)(yyvsp[-2])->value.p;
 					add_kv_to_tbl(n->value.p, tmp1->s, (yyvsp[0]));
 				}
-#line 1291 "parse.c" /* yacc.c:1646  */
+#line 1285 "parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 114 "parse.y" /* yacc.c:1646  */
+#line 108 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *s = toml_alloc_string();
 					if((yyvsp[0])->value.i != 0) {
@@ -1306,11 +1300,11 @@ yyreduce:
 					(yyvsp[0])->type = TOML_STRING;
 					(yyvsp[0])->value.p = s;
 				}
-#line 1310 "parse.c" /* yacc.c:1646  */
+#line 1304 "parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 1314 "parse.c" /* yacc.c:1646  */
+#line 1308 "parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1538,7 +1532,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 137 "parse.y" /* yacc.c:1906  */
+#line 131 "parse.y" /* yacc.c:1906  */
 
 
 int nextc(parser_state *p) {
@@ -1857,86 +1851,3 @@ int toml_free(node *root) {
 	free(root);
 }
 
-void print_all_node(node *n) {
-	toml_table *tbl = (toml_table *)n->value.p;
-	printf("count : %d\n", tbl->count);
-	for(int i = 0; i < tbl->count; i++) {
-		switch(tbl->v[i]->type) {
-			case TOML_STRING: {
-				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-				printf("  [TOML_STR  ]%s = %s\n", tbl->k[i], tmp2->s);
-				break;
-			}
-			case TOML_BOOL:
-				if(tbl->v[i]->value.i == 0) {
-					printf("  [TOML_BOOL ]%s = false\n", tbl->k[i]);
-				} else {
-					printf("  [TOML_BOOL ]%s = true\n", tbl->k[i]);
-				}
-				break;
-			case TOML_INT:
-				printf("  [TOML_INT  ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
-				break;
-			case TOML_FLOAT:
-				printf("  [TOML_FLOAT]%s = %lf\n", tbl->k[i], tbl->v[i]->value.f);
-				break;
-		}
-	}
-}
-
-int main(int argc, char* argv[])
-{
-	// yydebug = 1;
-	if(argc <= 1) {
-		fprintf(stderr, "file name is needed\n");
-	}
-	FILE *fp;
-	long file_size;
-	char *buffer;
-	struct _stat stbuf;
-	int fd;
-	char c;
-	if(_sopen_s(&fd, argv[1], O_RDONLY, _SH_DENYNO, 0)) {
-		fprintf(stderr, "open error\n");
-		exit(1);
-	}
-	fp = fdopen(fd, "rb");
-	if(fp == NULL) {
-		fprintf(stderr, "fdopen error\n");
-		exit(1);
-	}
-	int result;
-	result = _fstat(fd, &stbuf);
-	if(result != 0) {
-		fprintf(stderr, "fstat error\n");
-		exit(1);
-	}
-	file_size = stbuf.st_size;
-	buffer = (char*)calloc(file_size, sizeof(char));
-	if (buffer == NULL) {
-		fprintf(stderr, "malloc error\n");
-		exit(1);
-	}
-	for(int i = 0; (c = fgetc(fp)) != -1; i++) {
-		buffer[i] = c;
-	}
-	_close(fd);
-	for(int i = 0; i < 100000;i++) {
-		node *root;
-		int ret;
-		ret = toml_init(&root);
-		if(ret == -1) {
-			fprintf(stderr, "toml_init error\n");
-			return -1;
-		}
-		ret = toml_parse(root, buffer, strlen(buffer));
-		if(ret == -1) {
-			fprintf(stderr, "toml_parse error\n");
-			return -1;
-		}
-		// print_all_node(root);
-		toml_free(root);
-	}
-
-return 0;
-}
