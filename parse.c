@@ -1479,7 +1479,7 @@ yyreduce:
   case 10:
 #line 300 "parse.y" /* yacc.c:1646  */
     {
-					toml_string *s = toml_alloc_string();
+					toml_string *s = (toml_string *)malloc(sizeof(toml_string));
 					if((yyvsp[0])->value.i != 0) {
 						s->s = (char *)malloc(5 + sizeof(char));
 						memcpy(s->s, "true", 5);

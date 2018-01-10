@@ -298,7 +298,7 @@ key_lit : KEY_STRING
 				| VAL_STRING
 				| tINT
 				| tBOOL {
-					toml_string *s = toml_alloc_string();
+					toml_string *s = (toml_string *)malloc(sizeof(toml_string));
 					if($1->value.i != 0) {
 						s->s = (char *)malloc(5 + sizeof(char));
 						memcpy(s->s, "true", 5);
