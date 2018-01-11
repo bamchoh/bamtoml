@@ -116,9 +116,9 @@ int parse_val_string(parser_state *p) {
 				break;
 		}
 		if(c == '"') {
-			if(toml_str_plus(p->current->value.p, c) == -1) {
-				return -2;
-			}
+			// if(toml_str_plus(p->current->value.p, c) == -1) {
+			// 	return -2;
+			// }
 			break;
 		}
 		if(toml_str_plus(p->current->value.p, c) == -1) {
@@ -323,7 +323,7 @@ val_lit : VAL_STRING
 %%
 
 
-/* 繝医�ｼ繧ｯ繝ｳ隗｣譫宣未謨ｰ */
+/* トークン解析関数 */
 int yylex(parser_state *p) {
 	int c;
 retry:
@@ -339,10 +339,10 @@ retry:
 	}
 	if(c == '"') {
 		p->current = new_str();
-		if(toml_str_plus(p->current->value.p, c) == -1) {
-			fprintf(stderr, "toml_str_plus error in parsing string lit.\n");
-			return 0;
-		}
+		// if(toml_str_plus(p->current->value.p, c) == -1) {
+		// 	fprintf(stderr, "toml_str_plus error in parsing string lit.\n");
+		// 	return 0;
+		// }
 		if(parse_val_string(p) != 0) {
 			fprintf(stderr, "parse_val_string error in parsing string lit.\n");
 			return 0;
@@ -402,7 +402,7 @@ retry:
 	return c;
 }
 
-/* 繧ｨ繝ｩ繝ｼ陦ｨ遉ｺ髢｢謨ｰ */
+/* エラー表示関数 */
 void yyerror(parser_state *p, const char* s)
 {
 	fprintf(stderr, "error: %s\n", s);
