@@ -1,6 +1,5 @@
 %{
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 // #include <fcntl.h>
@@ -104,6 +103,17 @@ int peekc(parser_state *p) {
 	return EOF;
 }
 
+int peekc2(parser_state *p) {
+	int c;
+	if(strlen(p->buffer) > p->count+1) {
+		c = p->buffer[p->count+1];
+		if(c != 0) {
+			return c;
+		}
+	}
+	return EOF;
+}
+
 int parse_val_string(parser_state *p) {
 	int c;
 	while(1) {
@@ -150,10 +160,10 @@ int parse_key_string(parser_state *p) {
 }
 
 int is_term(parser_state *p, char c) {
-	if(c == ' ' || c == '\n' || (c == '\r' && peekc(p) == '\n')) {
-		return -1;
+	if(c == EOF || c == ' ' || c == '\n' || (c == '\r' && peekc(p) == '\n')) {
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 int check_bool(parser_state *p) {
@@ -161,7 +171,7 @@ int check_bool(parser_state *p) {
 	int pos = p->count;
 	char c;
 	for(int i = 0;(c = nextc(p)) != -1;i++) {
-		if(is_term(p,c)) {
+		if(is_term(p,c) == TRUE) {
 			pushback(p,c);
 			break;
 		}
@@ -197,9 +207,9 @@ int check_integer(parser_state *p) {
 	char prevc = -1;
 	char c;
 	int pos = p->count;
-	bool found_dot = false;
+	int found_dot = FALSE;
 	for(int i = 0;(c = nextc(p)) != -1;i++) {
-		if(is_term(p,c)) {
+		if(is_term(p,c) == TRUE) {
 			pushback(p, c);
 			break;
 		}
@@ -227,12 +237,12 @@ int check_integer(parser_state *p) {
 			return -1;
 		}
 		if(c == '.') {
-			if(found_dot == true) {
+			if(found_dot == TRUE) {
 				p->count = pos;
 				toml_string_free(s);
 				return -1;
 			}
-			found_dot = true;
+			found_dot = TRUE;
 			prevc = c;
 			if(toml_str_plus(s, c) == -1) {
 				p->count = pos;
@@ -257,7 +267,7 @@ int check_integer(parser_state *p) {
 		pushback(p,c);
 	}
 	node *n = node_alloc();
-	if(found_dot == true) {
+	if(found_dot == TRUE) {
 		n->type = TOML_FLOAT;
 		n->value.f = atof(s->s);
 	} else {
@@ -322,27 +332,101 @@ val_lit : VAL_STRING
 
 %%
 
+int parser_is_eof(parser_state *p) {
+	if(peekc(p) == EOF) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+int parser_is_whitespace(parser_state *p) {
+	int c = peekc(p);
+	if(c == ' ' || (c == '\r' && peekc2(p) == '\n')) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+int parser_is_equal(parser_state *p) {
+	return peekc(p) == '=' ? TRUE : FALSE;
+}
+
+int parser_is_endline(parser_state *p) {
+	return peekc(p) == '\n' ? TRUE : FALSE;
+}
+
+int parser_is_string(parser_state *p) {
+	int c;
+	int pos = p->count;
+	if(nextc(p) == '"') {
+		while(1) {
+			c = nextc(p);
+			if(c == -1) {
+				p->count = pos;
+				return FALSE;
+			}
+			if(c == '\n') {
+				p->count = pos;
+				return FALSE;
+			}
+			if(c == '"') {
+				p->count = pos;
+				return TRUE;
+			}
+		}
+	}
+	p->count = pos;
+	return FALSE;
+}
+
+int parser_is_bool(parser_state *p) {
+	int pos = p->count;
+	char *buf = p->buffer + p->count;
+	char c;
+	if(strncmp(buf, "true", 4) == 0) {
+		p->count += 4;
+		c = nextc(p);
+		if(is_term(p,c) == TRUE) {
+			p->count = pos;
+			return TRUE;
+		}
+		p->count = pos;
+		return FALSE;
+	}
+	if(strncmp(buf, "false", 5) == 0) {
+		p->count += 5;
+		c = nextc(p);
+		if(is_term(p,c) == TRUE) {
+			p->count = pos;
+			return TRUE;
+		}
+		p->count = pos;
+		return FALSE;
+	}
+	p->count = pos;
+	return FALSE;
+}
 
 /* ƒg[ƒNƒ“‰ðÍŠÖ” */
 int yylex(parser_state *p) {
 	int c;
 retry:
-		 c = nextc(p);
-	if(c == EOF) {
-		return 0;
+	if(parser_is_eof(p) == TRUE) {
+		return nextc(p);
 	}
-	if(c == ' ' || (c == '\r' && peekc(p) == '\n')) {
+	if(parser_is_whitespace(p) == TRUE) {
+		nextc(p);
 		goto retry;
 	}
-	if(c == '=' || c == '\n') {
-		return c;
+	if(parser_is_equal(p) == TRUE) {
+		return nextc(p);
 	}
-	if(c == '"') {
+	if(parser_is_endline(p) == TRUE) {
+		return nextc(p);
+	}
+	if(parser_is_string(p) == TRUE) {
+		nextc(p);
 		p->current = new_str();
-		// if(toml_str_plus(p->current->value.p, c) == -1) {
-		// 	fprintf(stderr, "toml_str_plus error in parsing string lit.\n");
-		// 	return 0;
-		// }
 		if(parse_val_string(p) != 0) {
 			fprintf(stderr, "parse_val_string error in parsing string lit.\n");
 			return 0;
@@ -350,8 +434,7 @@ retry:
 		yylval = (node *)p->current;
 		return VAL_STRING;
 	}
-	if(c == 't' || c == 'f') {
-		pushback(p,c);
+	if(parser_is_bool(p) == TRUE) {
 		int ret;
 		ret = check_bool(p);
 		if(ret == -2) {
@@ -362,8 +445,8 @@ retry:
 			yylval = p->current;
 			return tBOOL;
 		}
-		c = nextc(p);
 	}
+	c = nextc(p);
 	if(c == '+' || c == '-' || c == '.' || isdigit(c) != 0) {
 		pushback(p,c);
 		int ret;
@@ -406,6 +489,9 @@ retry:
 void yyerror(parser_state *p, const char* s)
 {
 	fprintf(stderr, "error: %s\n", s);
+	fprintf(stderr, "  count   : %d\n", p->count);
+	fprintf(stderr, "  buffer  : >>>\n%s\n>>>\n", p->buffer);
+	fprintf(stderr, "  current : (%c)\n", p->buffer[p->count]);
 }
 
 int toml_init(node **root) {
