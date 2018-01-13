@@ -131,6 +131,8 @@ node *root_node_new() {
 typedef struct toml_parser_state {
 	char* buffer;
 	unsigned int count;
+	unsigned int tlen;
+	char* token;
 	node* node_tree;
 	node* current;
 } parser_state;
@@ -153,7 +155,7 @@ int nextc(parser_state *p) {
 	return EOF;
 }
 
-void pushback(parser_state *p, char c) {
+void pushback(parser_state *p) {
 	p->count--;
 }
 
@@ -168,60 +170,7 @@ int peekc(parser_state *p) {
 	return EOF;
 }
 
-int peekc2(parser_state *p) {
-	int c;
-	if(strlen(p->buffer) > p->count+1) {
-		c = p->buffer[p->count+1];
-		if(c != 0) {
-			return c;
-		}
-	}
-	return EOF;
-}
-
-int parse_val_string(parser_state *p) {
-	int c;
-	while(1) {
-		c = nextc(p);
-		if(c == -1) {
-			break;
-		}
-		if(c == '\n') {
-				pushback(p, c);
-				break;
-		}
-		if(c == '"') {
-			// if(toml_str_plus(p->current->value.p, c) == -1) {
-			// 	return -2;
-			// }
-			break;
-		}
-		if(toml_str_plus(p->current->value.p, c) == -1) {
-			return -2;
-		}
-	}
-	return 0;
-}
-
 int parse_key_string(parser_state *p) {
-	int c;
-	while(1) {
-		c = nextc(p);
-		if(c == -1) {
-			break;
-		}
-		if(c == '\n') {
-			pushback(p, c);
-			break;
-		}
-		if(c == ' ') {
-			break;
-		}
-		if(toml_str_plus(p->current->value.p, c) == -1) {
-			return -2;
-		}
-	}
-	return 0;
 }
 
 int is_term(parser_state *p, char c) {
@@ -231,121 +180,8 @@ int is_term(parser_state *p, char c) {
 	return FALSE;
 }
 
-int check_bool(parser_state *p) {
-	toml_string *s = toml_alloc_string();
-	int pos = p->count;
-	char c;
-	for(int i = 0;(c = nextc(p)) != -1;i++) {
-		if(is_term(p,c) == TRUE) {
-			pushback(p,c);
-			break;
-		}
-		if(toml_str_plus(s,c) == -1) {
-			p->count = pos;
-			toml_string_free(s);
-			return -2;
-		}
-	}
-	if(strcmp(s->s, "true") == 0) {
-		node *n = node_alloc();
-		n->type = TOML_BOOL;
-		n->value.i = -1;
-		p->current = n;
-		toml_string_free(s);
-		return 0;
-	}
-	if(strcmp(s->s, "false") == 0) {
-		node *n = node_alloc();
-		n->type = TOML_BOOL;
-		n->value.i = 0;
-		p->current = n;
-		toml_string_free(s);
-		return 0;
-	}
-	p->count = pos;
-	toml_string_free(s);
-	return -1;
-}
 
-int check_integer(parser_state *p) {
-	toml_string *s = toml_alloc_string();
-	char prevc = -1;
-	char c;
-	int pos = p->count;
-	int found_dot = FALSE;
-	for(int i = 0;(c = nextc(p)) != -1;i++) {
-		if(is_term(p,c) == TRUE) {
-			pushback(p, c);
-			break;
-		}
-		if((c == '0' || c == '_' || c == '.' ) && i == 0) {
-			p->count = pos;
-			toml_string_free(s);
-			return -1;
-		}
-		if((c == '+' || c == '-') && i == 0) {
-			prevc = c;
-			if(toml_str_plus(s, c) == -1) {
-				p->count = pos;
-				toml_string_free(s);
-				return -2;
-			}
-			continue;
-		}
-		if(c == '_' && isdigit(prevc) != 0 && isdigit(peekc(p)) != 0) {
-			prevc = c;
-			continue;
-		}
-		if(c == '_') {
-			p->count = pos;
-			toml_string_free(s);
-			return -1;
-		}
-		if(c == '.') {
-			if(found_dot == TRUE) {
-				p->count = pos;
-				toml_string_free(s);
-				return -1;
-			}
-			found_dot = TRUE;
-			prevc = c;
-			if(toml_str_plus(s, c) == -1) {
-				p->count = pos;
-				toml_string_free(s);
-				return -2;
-			}
-			continue;
-		}
-		if(isdigit(c) == 0) {
-			p->count = pos;
-			toml_string_free(s);
-			return -1;
-		}
-		prevc = c;
-		if(toml_str_plus(s, c) == -1) {
-			p->count = pos;
-			toml_string_free(s);
-			return -2;
-		}
-	}
-	if(c == -1) {
-		pushback(p,c);
-	}
-	node *n = node_alloc();
-	if(found_dot == TRUE) {
-		n->type = TOML_FLOAT;
-		n->value.f = atof(s->s);
-	} else {
-		n->type = TOML_INT;
-		n->value.i = atol(s->s);
-	}
-	p->current = n;
-	toml_string_free(s);
-	return 0;
-}
-
-
-#line 349 "parse.c" /* yacc.c:339  */
+#line 185 "parse.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -401,7 +237,7 @@ int yyparse (parser_state *p);
 
 /* Copy the second part of user declarations.  */
 
-#line 405 "parse.c" /* yacc.c:358  */
+#line 241 "parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -697,10 +533,10 @@ static const yytype_uint8 yytranslate[] =
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
-static const yytype_uint16 yyrline[] =
+static const yytype_uint8 yyrline[] =
 {
-       0,   294,   294,   295,   297,   298,   300,   307,   308,   309,
-     310,   325,   326,   327,   328
+       0,   130,   130,   131,   133,   134,   136,   143,   144,   145,
+     146,   161,   162,   163,   164
 };
 #endif
 
@@ -1476,18 +1312,18 @@ yyreduce:
   switch (yyn)
     {
         case 6:
-#line 300 "parse.y" /* yacc.c:1646  */
+#line 136 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *str = (yyvsp[-2])->value.p;
 					add_kv_to_tbl(p->node_tree->value.p, str->s, (yyvsp[0]));
 					free(str);
 					free((yyvsp[-2]));
 				}
-#line 1487 "parse.c" /* yacc.c:1646  */
+#line 1323 "parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 310 "parse.y" /* yacc.c:1646  */
+#line 146 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *s = (toml_string *)malloc(sizeof(toml_string));
 					if((yyvsp[0])->value.i != 0) {
@@ -1502,11 +1338,11 @@ yyreduce:
 					(yyvsp[0])->type = TOML_STRING;
 					(yyvsp[0])->value.p = s;
 				}
-#line 1506 "parse.c" /* yacc.c:1646  */
+#line 1342 "parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 1510 "parse.c" /* yacc.c:1646  */
+#line 1346 "parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1734,21 +1570,15 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 333 "parse.y" /* yacc.c:1906  */
+#line 169 "parse.y" /* yacc.c:1906  */
 
-
-int parser_is_eof(parser_state *p) {
-	if(peekc(p) == EOF) {
-		return TRUE;
-	}
-	return FALSE;
-}
 
 int parser_is_whitespace(parser_state *p) {
-	int c = peekc(p);
-	if(c == ' ' || (c == '\r' && peekc2(p) == '\n')) {
+	int c = nextc(p);
+	if(c == ' ' || (c == '\r' && peekc(p) == '\n')) {
 		return TRUE;
 	}
+	pushback(p);
 	return FALSE;
 }
 
@@ -1760,22 +1590,47 @@ int parser_is_endline(parser_state *p) {
 	return peekc(p) == '\n' ? TRUE : FALSE;
 }
 
+int parser_is_key_string(parser_state *p) {
+	int pos = p->count;
+	p->token = p->buffer + p->count;
+	int c;
+	while(1) {
+		c = nextc(p);
+		if(c == '-' || c == '_' ||
+			(0x30 <= c && c <= 0x39) ||
+			(0x40 <= c && c <= 0x5A) ||
+			(0x61 <= c && c <= 0x7A)) {
+			continue;
+		}
+		if(is_term(p,c) == TRUE) {
+			pushback(p);
+			p->tlen = p->count - pos;
+			return TRUE;
+		}
+	}
+	p->count = pos;
+	return FALSE;
+}
+
 int parser_is_string(parser_state *p) {
 	int c;
 	int pos = p->count;
+	p->token = p->buffer + p->count;
 	if(nextc(p) == '"') {
 		while(1) {
 			c = nextc(p);
 			if(c == -1) {
+				p->tlen = 0;
 				p->count = pos;
 				return FALSE;
 			}
 			if(c == '\n') {
+				p->tlen = 0;
 				p->count = pos;
 				return FALSE;
 			}
 			if(c == '"') {
-				p->count = pos;
+				p->tlen = p->count - pos;
 				return TRUE;
 			}
 		}
@@ -1784,43 +1639,195 @@ int parser_is_string(parser_state *p) {
 	return FALSE;
 }
 
-int parser_is_bool(parser_state *p) {
-	int pos = p->count;
-	char *buf = p->buffer + p->count;
-	char c;
-	if(strncmp(buf, "true", 4) == 0) {
-		p->count += 4;
+int parser_tokencmp(parser_state *p, char *lit, int len) {
+	if(strncmp(p->token,lit,len) == 0) {
+		p->count += len;
+		int c;
 		c = nextc(p);
 		if(is_term(p,c) == TRUE) {
-			p->count = pos;
+			p->tlen = len;
+			pushback(p);
 			return TRUE;
 		}
-		p->count = pos;
+		pushback(p);
 		return FALSE;
 	}
-	if(strncmp(buf, "false", 5) == 0) {
-		p->count += 5;
-		c = nextc(p);
-		if(is_term(p,c) == TRUE) {
-			p->count = pos;
-			return TRUE;
-		}
-		p->count = pos;
-		return FALSE;
+	return FALSE;
+}
+
+int parser_is_bool(parser_state *p) {
+	char c;
+	int pos = p->count;
+	p->token = p->buffer + p->count;
+	if(parser_tokencmp(p,"true",4) == TRUE) {
+		return TRUE;
+	}
+	if(parser_tokencmp(p,"false",5) == TRUE) {
+		return TRUE;
 	}
 	p->count = pos;
 	return FALSE;
 }
 
-/* トークン解析関数 */
+int parser_is_number(parser_state *p, int *found_dot) {
+	int prevc = -1;
+	p->token = p->buffer + p->count;
+	int c = nextc(p);
+	if(c == '0' || c == '_' || c == '.' ) {
+		pushback(p);
+		return FALSE;
+	}
+	if(c == '+' || c == '-' || isdigit(c) != 0 ) {
+		prevc = c;
+		for(int i = 1;(c = nextc(p)) != EOF;i++) {
+			if(is_term(p,c) == TRUE) {
+				pushback(p);
+				return TRUE;
+			}
+			if(c == '_' && isdigit(prevc) != 0 && isdigit(peekc(p)) != 0) {
+				prevc = c;
+				continue;
+			}
+			if(c == '_') {
+				return FALSE;
+			}
+			if(c == '.') {
+				if(*found_dot == TRUE) {
+					return FALSE;
+				}
+				*found_dot = TRUE;
+				prevc = c;
+				continue;
+			}
+			if(isdigit(c) == 0) {
+				return FALSE;
+			}
+			prevc = c;
+		}
+		if(c == EOF) {
+			return FALSE;
+		}
+	}
+	pushback(p);
+	return FALSE;
+}
+
+int parser_is_float(parser_state *p) {
+	int pos = p->count;
+	int found_dot = FALSE;
+	if(parser_is_number(p, &found_dot) == TRUE) {
+		if(found_dot == TRUE) {
+			p->tlen = p->count + pos;
+			return TRUE;
+		} else {
+			p->count = pos;
+			return FALSE;
+		}
+	}
+	return FALSE;
+}
+
+
+int parser_is_int(parser_state *p) {
+	int pos = p->count;
+	int found_dot = FALSE;
+	if(parser_is_number(p, &found_dot) == TRUE) {
+		if(found_dot == FALSE) {
+			p->tlen = p->count + pos;
+			return TRUE;
+		} else {
+			p->count = pos;
+			return FALSE;
+		}
+	}
+	return FALSE;
+}
+
+char *rm_(char *token, int tlen) {
+	char *temp = (char *)malloc(sizeof(char) * tlen);
+	int j = 0;
+	for(int i = 0; i < tlen; i++) {
+		if(token[i] == '_') {
+			continue;
+		}
+		temp[j] = token[i];
+		j++;
+	}
+	temp[j] = '\0';
+	return temp;
+}
+
+double conv_ttof(char *token, int tlen) {
+	double d;
+	char *temp = rm_(token, tlen);
+	sscanf(temp, "%lf",&d);
+	free(temp);
+	return d;
+}
+
+long conv_ttol(char *token, int tlen) {
+	long l;
+	char *temp = rm_(token, tlen);
+	sscanf(temp, "%ld",&l);
+	free(temp);
+	return l;
+}
+
+node *new_node_float(double d) {
+	node *n = node_alloc();
+	if(n == NULL) {
+		return NULL;
+	}
+	n->type = TOML_FLOAT;
+	n->value.f = d;
+	return n;
+}
+
+node *new_node_int(long l) {
+	node *n = node_alloc();
+	if(n == NULL) {
+		return NULL;
+	}
+	n->type = TOML_INT;
+	n->value.i = l;
+	return n;
+}
+
+node *new_node_bool(int b) {
+	node *n = node_alloc();
+	if(n == NULL) {
+		return NULL;
+	}
+	n->type = TOML_BOOL;
+	n->value.i = b;
+	return n;
+}
+
+node *new_node_str(char *str, int len) {
+	char *t = (char *)malloc(sizeof(char) * (len+1));
+	memcpy(t, str, len);
+	t[len] = '\0';
+
+toml_string *ts = (toml_string *)malloc(sizeof(toml_string));
+	ts->i = len;
+	ts->s = t;
+
+node *n = node_alloc();
+	if(n == NULL) {
+		return NULL;
+	}
+	n->type = TOML_STRING;
+	n->value.p = ts;
+	return n;
+}
+
 int yylex(parser_state *p) {
 	int c;
 retry:
-	if(parser_is_eof(p) == TRUE) {
+		 if(peekc(p) == EOF) {
 		return nextc(p);
 	}
 	if(parser_is_whitespace(p) == TRUE) {
-		nextc(p);
 		goto retry;
 	}
 	if(parser_is_equal(p) == TRUE) {
@@ -1829,92 +1836,41 @@ retry:
 	if(parser_is_endline(p) == TRUE) {
 		return nextc(p);
 	}
-	if(parser_is_string(p) == TRUE) {
-		nextc(p);
-		p->current = new_str();
-		if(parse_val_string(p) != 0) {
-			fprintf(stderr, "parse_val_string error in parsing string lit.\n");
-			return 0;
-		}
-		yylval = (node *)p->current;
-		return VAL_STRING;
-	}
 	if(parser_is_bool(p) == TRUE) {
-		int ret;
-		ret = check_bool(p);
-		if(ret == -2) {
+		node *n;
+		if(*(p->token) == 't') {
+			n = new_node_bool(TRUE);
+		} else {
+			n = new_node_bool(FALSE);
+		}
+		if(n == NULL) {
 			fprintf(stderr, "check_bool error\n");
 			return 0;
 		}
-		if(ret == 0) {
-			yylval = p->current;
-			return tBOOL;
-		}
+		yylval = n;
+		return tBOOL;
 	}
-	c = nextc(p);
-	if(c == '+' || c == '-' || c == '.' || isdigit(c) != 0) {
-		pushback(p,c);
-		int ret;
-		ret = check_integer(p);
-		if(ret == -2) {
-			fprintf(stderr, "check_integer error\n");
-			return 0;
-		}
-		if(ret == 0) {
-			yylval = p->current;
-			if(p->current->type == TOML_FLOAT) {
-				return tFLOAT;
-			} else {
-				return tINT;
-			}
-		}
-		c = nextc(p);
+	if(parser_is_int(p) == TRUE) {
+		long l = conv_ttol(p->token, p->tlen);
+		yylval = new_node_int(l);
+		return tINT;
 	}
-	if(c == '-' || c == '_' ||
-		(0x30 <= c && c <= 0x39) ||
-		(0x40 <= c && c <= 0x5A) ||
-		(0x61 <= c && c <= 0x7A)) {
-		p->current = new_str();
-		if(toml_str_plus(p->current->value.p, c) == -1) {
-			fprintf(stderr, "toml_str_plus error in parsing key string.\n");
-			return 0;
-		}
-		if(parse_key_string(p) != 0) {
-			fprintf(stderr, "parse_key_string error in parsing parse_key_string.n");
-			return 0;
-		}
-		yylval = (node *)p->current;
+	if(parser_is_float(p) == TRUE) {
+		double d = conv_ttof(p->token, p->tlen);
+		yylval = new_node_float(d);
+		return tFLOAT;
+	}
+	if(parser_is_string(p) == TRUE) {
+		yylval = new_node_str(p->token+1, p->tlen-2);
+		return VAL_STRING;
+	}
+	if(parser_is_key_string(p) == TRUE) {
+		yylval = new_node_str(p->token, p->tlen);
 		return KEY_STRING;
 	}
+	c = nextc(p);
 	fprintf(stderr, "undef token %c(%d)\n", c, c);
 	return c;
-}
-
-void print_node_tree(node *n) {
-	toml_table *tbl = (toml_table *)n->value.p;
-	printf("count : %d\n", tbl->count);
-	for(int i = 0; i < tbl->count; i++) {
-		switch(tbl->v[i]->type) {
-			case TOML_STRING: {
-				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-				printf("  [TOML_STR  ]%s = %s\n", tbl->k[i], tmp2->s);
-				break;
-			}
-			case TOML_BOOL:
-				if(tbl->v[i]->value.i == 0) {
-					printf("  [TOML_BOOL ]%s = false\n", tbl->k[i]);
-				} else {
-					printf("  [TOML_BOOL ]%s = true\n", tbl->k[i]);
-				}
-				break;
-			case TOML_INT:
-				printf("  [TOML_INT  ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
-				break;
-			case TOML_FLOAT:
-				printf("  [TOML_FLOAT]%s = %lf\n", tbl->k[i], tbl->v[i]->value.f);
-				break;
-		}
-	}
 }
 
 /* エラー表示関数 */
@@ -1922,9 +1878,8 @@ void yyerror(parser_state *p, const char* s)
 {
 	fprintf(stderr, "error: %s\n", s);
 	fprintf(stderr, "  count   : %d\n", p->count);
-	fprintf(stderr, "  buffer  : >>>\n%s\n>>>\n", p->buffer);
+	fprintf(stderr, "  buffer  : >>>\n%s\n>>>\n", p->buffer + p->count);
 	fprintf(stderr, "  current : (%c)\n", p->buffer[p->count]);
-	print_node_tree(p->node_tree);
 }
 
 int toml_init(node **root) {
@@ -1940,6 +1895,7 @@ int toml_parse(node *root, char* buf, int len) {
 	parser_state p;
 	p.buffer = buf;
 	p.count = 0;
+	p.token = NULL;
 	p.node_tree = root;
 	return(yyparse(&p));
 }
