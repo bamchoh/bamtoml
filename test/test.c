@@ -83,9 +83,9 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 		ret = toml_parse(root, buffer, strlen(buffer));
-		if(ret == -1) {
+		if(ret != 0) {
 			fprintf(stderr, "toml_parse error\n");
-			return -1;
+			return ret;
 		}
 
 		print_json(root);

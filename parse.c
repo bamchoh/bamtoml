@@ -1602,7 +1602,7 @@ int parser_is_key_string(parser_state *p) {
 			(0x61 <= c && c <= 0x7A)) {
 			continue;
 		}
-		if(is_term(p,c) == TRUE) {
+		if(is_term(p,c) == TRUE || c == '=') {
 			pushback(p);
 			p->tlen = p->count - pos;
 			return TRUE;
