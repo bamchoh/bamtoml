@@ -10,7 +10,9 @@
 // #include <share.h>
 #include "toml_tbl.h"
 #include "toml_str.h"
+#include "toml_float.h"
 #include "toml.h"
+#include "limits.h"
 
 int toml_node_free(node *n);
 
@@ -67,6 +69,7 @@ typedef struct toml_parser_state {
 	char* buffer;
 	unsigned int count;
 	unsigned int tlen;
+	int precision;
 	char* token;
 	node* node_tree;
 	node* current;
@@ -207,6 +210,23 @@ int parser_is_key_string(parser_state *p) {
 	return FALSE;
 }
 
+int parser_is_multi_string(parser_state *p) {
+	int pos = p->count;
+	p->token = p->buffer+p->count;
+	if(strncmp((p->token),"\"\"\"", 3) == 0) {
+		p->count+=3;
+		while(peekc(p) != EOF) {
+			if(strncmp(p->buffer+p->count,"\"\"\"", 3) == 0) {
+				p->count+=3;
+				p->tlen = p->count - pos;
+				return TRUE;
+			}
+			p->count++;
+		}
+	}
+	return FALSE;
+}
+
 int parser_is_string(parser_state *p) {
 	int c;
 	int pos = p->count;
@@ -297,6 +317,9 @@ int parser_is_number(parser_state *p, int *found_dot) {
 			if(isdigit(c) == 0) {
 				return FALSE;
 			}
+			if(*found_dot == TRUE) {
+				p->precision++;
+			}
 			prevc = c;
 		}
 		if(c == EOF) {
@@ -310,6 +333,7 @@ int parser_is_number(parser_state *p, int *found_dot) {
 int parser_is_float(parser_state *p) {
 	int pos = p->count;
 	int found_dot = FALSE;
+	p->precision = 0;
 	if(parser_is_number(p, &found_dot) == TRUE) {
 		if(found_dot == TRUE) {
 			p->tlen = p->count + pos;
@@ -360,25 +384,28 @@ double conv_ttof(char *token, int tlen) {
 	return d;
 }
 
-long conv_ttol(char *token, int tlen) {
-	long l;
+long long conv_ttol(char *token, int tlen) {
+	long long l = 0;
 	char *temp = rm_(token, tlen);
-	sscanf(temp, "%ld",&l);
+	sscanf(temp, "%lld",&l);
 	free(temp);
 	return l;
 }
 
-node *new_node_float(double d) {
+node *new_node_float(double d,int precision) {
+	toml_float *f = new_toml_float();
+	f->v = d;
+	f->p = precision;
 	node *n = node_alloc();
 	if(n == NULL) {
 		return NULL;
 	}
 	n->type = TOML_FLOAT;
-	n->value.f = d;
+	n->value.f = f;
 	return n;
 }
 
-node *new_node_int(long l) {
+node *new_node_int(long long l) {
 	node *n = node_alloc();
 	if(n == NULL) {
 		return NULL;
@@ -403,7 +430,7 @@ node *new_node_str(char *str, int len) {
 	memcpy(t, str, len);
 	t[len] = '\0';
 
-toml_string *ts = (toml_string *)malloc(sizeof(toml_string));
+	toml_string *ts = (toml_string *)malloc(sizeof(toml_string));
 	ts->i = len;
 	ts->s = t;
 
@@ -413,6 +440,39 @@ node *n = node_alloc();
 	}
 	n->type = TOML_STRING;
 	n->value.p = ts;
+	return n;
+}
+
+node *new_node_mulstr(char *str, int len) {
+	char *tmp = (char*)malloc(sizeof(char));
+	int ignore = FALSE;
+	int j = 0;
+	for(int i = 0; i < len; i++) {
+		if(str[i] == '\\') {
+			int c1 = str[i+1];
+			if(c1 == '\n') {
+				i+=1;
+				ignore = TRUE;
+				continue;
+			}
+			int c2 = str[i+2];
+			if(c1 == '\r' && c2 == '\n') {
+				i+=2;
+				ignore = TRUE;
+				continue;
+			}
+			ignore = FALSE;
+		}
+		if(ignore == TRUE && str[i] == ' ') {
+			continue;
+		}
+		ignore = FALSE;
+		tmp[j] = str[i];
+		j++;
+	}
+	printf("tmp:(%d)%s\n",j,tmp);
+	node *n = new_node_str(tmp, j);
+	free(tmp);
 	return n;
 }
 
@@ -446,14 +506,19 @@ retry:
 		return tBOOL;
 	}
 	if(parser_is_int(p) == TRUE) {
-		long l = conv_ttol(p->token, p->tlen);
+		long long l = conv_ttol(p->token, p->tlen);
 		yylval = new_node_int(l);
 		return tINT;
 	}
 	if(parser_is_float(p) == TRUE) {
 		double d = conv_ttof(p->token, p->tlen);
-		yylval = new_node_float(d);
+		yylval = new_node_float(d,p->precision);
 		return tFLOAT;
+	}
+	if(parser_is_multi_string(p) == TRUE) {
+		printf("text:(%d)%.*s\n", p->tlen,p->tlen, p->token);
+		yylval = new_node_mulstr(p->token+3, p->tlen-6);
+		return VAL_STRING;
 	}
 	if(parser_is_string(p) == TRUE) {
 		yylval = new_node_str(p->token+1, p->tlen-2);

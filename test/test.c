@@ -61,10 +61,10 @@ void print_json(node *root) {
 				}
 				break;
 			case TOML_INT:
-				printf("\"%s\": { \"type\": \"%s\", \"value\": \"%ld\" }", tbl->k[i], "integer", tbl->v[i]->value.i);
+				printf("\"%s\": { \"type\": \"%s\", \"value\": \"%lld\" }", tbl->k[i], "integer", tbl->v[i]->value.i);
 				break;
 			case TOML_FLOAT:
-				printf("\"%s\": { \"type\": \"%s\", \"value\": \"%lf\" }", tbl->k[i], "float", tbl->v[i]->value.f);
+				printf("\"%s\": { \"type\": \"%s\", \"value\": \"%.*lf\" }", tbl->k[i], "float", tbl->v[i]->value.f->p, tbl->v[i]->value.f->v);
 				break;
 		}
 	}

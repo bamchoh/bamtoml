@@ -21,7 +21,7 @@ void print_all_node(node *n) {
 		switch(tbl->v[i]->type) {
 			case TOML_STRING: {
 				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-				printf("  [TOML_STR  ]%s = %s\n", tbl->k[i], tmp2->s);
+				printf("  [TOML_STR  ]%s = \"%s\"\n", tbl->k[i], tmp2->s);
 				break;
 			}
 			case TOML_BOOL:
@@ -32,10 +32,10 @@ void print_all_node(node *n) {
 				}
 				break;
 			case TOML_INT:
-				printf("  [TOML_INT  ]%s = %d\n", tbl->k[i], tbl->v[i]->value.i);
+				printf("  [TOML_INT  ]%s = %lld\n", tbl->k[i], tbl->v[i]->value.i);
 				break;
 			case TOML_FLOAT:
-				printf("  [TOML_FLOAT]%s = %lf\n", tbl->k[i], tbl->v[i]->value.f);
+				printf("  [TOML_FLOAT]%s = %.*lf\n", tbl->k[i], tbl->v[i]->value.f->p, tbl->v[i]->value.f->v);
 				break;
 		}
 	}

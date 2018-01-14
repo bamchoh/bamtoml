@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "toml_float.h"
 
 typedef enum {
 	TOML_ROOT = 1,
@@ -16,8 +17,8 @@ typedef enum {
 
 typedef struct node {
 	union {
-		long i;
-		double f;
+		long long i;
+		toml_float *f;
 		void *p;
 	} value;
 	node_type type;
