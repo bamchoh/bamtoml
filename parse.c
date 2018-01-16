@@ -67,17 +67,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-// #include <fcntl.h>
-// #include <io.h>
-// #include <sys/stat.h>
-#include <ctype.h>
-// #include <math.h>
-// #include <share.h>
 #include "toml_tbl.h"
 #include "toml_str.h"
 #include "toml_float.h"
 #include "toml.h"
 #include "limits.h"
+
+#define ISDIGIT(c) (((unsigned)(c) - '0') < 10)
+#define ISXDIGIT(c) (ISDIGIT(c) || ((unsigned)(c) | 0x20) - 'a' < 6)
 
 int toml_node_free(node *n);
 
@@ -184,7 +181,7 @@ int is_term(parser_state *p, char c) {
 }
 
 
-#line 188 "parse.c" /* yacc.c:339  */
+#line 185 "parse.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -240,7 +237,7 @@ int yyparse (parser_state *p);
 
 /* Copy the second part of user declarations.  */
 
-#line 244 "parse.c" /* yacc.c:358  */
+#line 241 "parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -538,8 +535,8 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   133,   133,   134,   136,   137,   139,   146,   147,   148,
-     149,   164,   165,   166,   167
+       0,   130,   130,   131,   133,   134,   136,   143,   144,   145,
+     146,   161,   162,   163,   164
 };
 #endif
 
@@ -1315,18 +1312,18 @@ yyreduce:
   switch (yyn)
     {
         case 6:
-#line 139 "parse.y" /* yacc.c:1646  */
+#line 136 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *str = (yyvsp[-2])->value.p;
 					add_kv_to_tbl(p->node_tree->value.p, str->s, (yyvsp[0]));
 					free(str);
 					free((yyvsp[-2]));
 				}
-#line 1326 "parse.c" /* yacc.c:1646  */
+#line 1323 "parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 149 "parse.y" /* yacc.c:1646  */
+#line 146 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *s = (toml_string *)malloc(sizeof(toml_string));
 					if((yyvsp[0])->value.i != 0) {
@@ -1341,11 +1338,11 @@ yyreduce:
 					(yyvsp[0])->type = TOML_STRING;
 					(yyvsp[0])->value.p = s;
 				}
-#line 1345 "parse.c" /* yacc.c:1646  */
+#line 1342 "parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 1349 "parse.c" /* yacc.c:1646  */
+#line 1346 "parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1573,7 +1570,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 172 "parse.y" /* yacc.c:1906  */
+#line 169 "parse.y" /* yacc.c:1906  */
 
 
 int parser_is_whitespace(parser_state *p) {
@@ -1636,6 +1633,7 @@ int parser_is_string(parser_state *p) {
 	int c;
 	int pos = p->count;
 	p->token = p->buffer + p->count;
+	int esc = FALSE;
 	if(nextc(p) == '"') {
 		while(1) {
 			c = nextc(p);
@@ -1643,6 +1641,14 @@ int parser_is_string(parser_state *p) {
 				p->tlen = 0;
 				p->count = pos;
 				return FALSE;
+			}
+			if(c == '\\') {
+				c = nextc(p);
+				switch(c) {
+				case '"':
+					continue;
+				}
+				pushback(p);
 			}
 			if(c == '\n') {
 				p->tlen = 0;
@@ -1697,14 +1703,14 @@ int parser_is_number(parser_state *p, int *found_dot) {
 		pushback(p);
 		return FALSE;
 	}
-	if(c == '+' || c == '-' || isdigit(c) != 0 ) {
+	if(c == '+' || c == '-' || ISDIGIT(c) != 0 ) {
 		prevc = c;
 		for(int i = 1;(c = nextc(p)) != EOF;i++) {
 			if(is_term(p,c) == TRUE) {
 				pushback(p);
 				return TRUE;
 			}
-			if(c == '_' && isdigit(prevc) != 0 && isdigit(peekc(p)) != 0) {
+			if(c == '_' && ISDIGIT(prevc) != 0 && ISDIGIT(peekc(p)) != 0) {
 				prevc = c;
 				continue;
 			}
@@ -1719,7 +1725,7 @@ int parser_is_number(parser_state *p, int *found_dot) {
 				prevc = c;
 				continue;
 			}
-			if(isdigit(c) == 0) {
+			if(ISDIGIT(c) == 0) {
 				return FALSE;
 			}
 			if(*found_dot == TRUE) {
@@ -1830,10 +1836,129 @@ node *new_node_bool(int b) {
 	return n;
 }
 
-node *new_node_str(char *str, int len) {
+long utf16toutf32(long val) {
+}
+
+int utf32toutf8(long val, char *t, int *j) {
+	if(val < 0 || val > 0x10FFFF) {
+		return FALSE;
+	}
+	char utf8[4];
+	int len;
+
+	if(val < 0x80) {
+		utf8[0] = (char)val;
+		len = 1;
+		printf("%s\n",t+*j-1);
+	} else if (val < 2048) {
+		utf8[0] = (char)(0xC0 | (val >> 6));
+		utf8[1] = (char)(0x80 | (val & 0x3F));
+		len = 2;
+	} else if (val < 65536) {
+		utf8[0] = (char)(0xE0 |  (val >> 12)        );
+		utf8[1] = (char)(0x80 | ((val >>  6) & 0x3F));
+		utf8[2] = (char)(0x80 | ( val        & 0x3F));
+		len = 3;
+	} else {
+		utf8[0] = (char)(0xF0 |  (val >> 18)        );
+		utf8[1] = (char)(0x80 | ((val >> 12) & 0x3F));
+		utf8[2] = (char)(0x80 | ((val >>  6) & 0x3F));
+		utf8[3] = (char)(0x80 | ( val        & 0x3F));
+		len = 4;
+	}
+	for(int i = 0;i < len;i++) {
+		t[*j+i] = utf8[i];
+	}
+	*j += len-1;
+	return TRUE;
+}
+
+long read_escape_unicode(char *src, int limit) {
+	static const char hexdigit[] = "0123456789abcdef0123456789ABCDEF";
+	int buf[9];
+	long retval = 0;
+	char *tmp;
+	for(int i = 0;i < limit;i++) {
+		if(!ISXDIGIT(src[i])) {
+			return -1;
+		}
+		tmp = (char*)strchr(hexdigit, src[i]);
+		retval <<= 4;
+		retval |= (tmp - hexdigit) & 15;
+	}
+	return retval;
+}
+
+node *new_node_str(parser_state *p, char *str, int len) {
+	long val;
 	char *t = (char *)malloc(sizeof(char) * (len+1));
-	memcpy(t, str, len);
-	t[len] = '\0';
+	// memcpy(t, str, len);
+
+	int j = 0;
+	for(int i = 0; i < len; i++,j++) {
+		if(str[i] == '\\') {
+			i++;
+			switch(str[i]) {
+			case 'b':
+				t[j] = 0x08;
+				break;
+			case 't':
+				t[j] = 0x09;
+				break;
+			case 'n':
+				t[j] = 0x0A;
+				break;
+			case 'f':
+				t[j] = 0x0C;
+				break;
+			case 'r':
+				t[j] = 0x0D;
+				break;
+			case '"':
+				t[j] = 0x22;
+				break;
+			case '/':
+				t[j] = 0x2F;
+				break;
+			case '\\':
+				t[j] = 0x5C;
+				break;
+			case 'u':
+				if(i+4 > len) {
+					yyerror(p,"invalid escape string");
+				} else {
+					val = read_escape_unicode(str+i+1,4);
+				}
+				if(val < 0 || 0xD800 <= val) {
+					yyerror(p,"invalid escape string");
+				}
+				utf32toutf8(val,t,&j);
+				i+=4;
+				break;
+			case 'U':
+				if(i+8 > len) {
+					yyerror(p,"invalid escape string");
+					i+=8;
+					break;
+				}
+				val = read_escape_unicode(str+i+1,8);
+				if(0 < val && val < 0xD800) {
+					utf32toutf8(val,t,&j);
+				} else if(0xFFFF < val && val < 0x10FFFF) {
+					val = utf16toutf32(val);
+					utf32toutf8(val,t,&j);
+				}
+				printf("%08X\n",val);
+				i+=8;
+				break;
+			default:
+				yyerror(p,"undefined escape was found.");
+			}
+			continue;
+		}
+		t[j] = str[i];
+	}
+	t[j] = '\0';
 
 	toml_string *ts = (toml_string *)malloc(sizeof(toml_string));
 	ts->i = len;
@@ -1848,7 +1973,7 @@ node *n = node_alloc();
 	return n;
 }
 
-node *new_node_mulstr(char *str, int len) {
+node *new_node_mulstr(parser_state *p, char *str, int len) {
 	char *tmp = (char*)malloc(sizeof(char));
 	int ignore = FALSE;
 	int j = 0;
@@ -1876,7 +2001,7 @@ node *new_node_mulstr(char *str, int len) {
 		j++;
 	}
 	printf("tmp:(%d)%s\n",j,tmp);
-	node *n = new_node_str(tmp, j);
+	node *n = new_node_str(p, tmp, j);
 	free(tmp);
 	return n;
 }
@@ -1922,15 +2047,17 @@ retry:
 	}
 	if(parser_is_multi_string(p) == TRUE) {
 		printf("text:(%d)%.*s\n", p->tlen,p->tlen, p->token);
-		yylval = new_node_mulstr(p->token+3, p->tlen-6);
+		yylval = new_node_mulstr(p,p->token+3, p->tlen-6);
 		return VAL_STRING;
 	}
 	if(parser_is_string(p) == TRUE) {
-		yylval = new_node_str(p->token+1, p->tlen-2);
+		node *n = new_node_str(p, p->token+1, p->tlen-2);
+		if(n == NULL) return 0;
+		yylval = n;
 		return VAL_STRING;
 	}
 	if(parser_is_key_string(p) == TRUE) {
-		yylval = new_node_str(p->token, p->tlen);
+		yylval = new_node_str(p, p->token, p->tlen);
 		return KEY_STRING;
 	}
 	c = nextc(p);
@@ -1942,9 +2069,9 @@ retry:
 void yyerror(parser_state *p, const char* s)
 {
 	fprintf(stderr, "error: %s\n", s);
-	fprintf(stderr, "  count   : %d\n", p->count);
-	fprintf(stderr, "  buffer  : >>>\n%s\n>>>\n", p->buffer + p->count);
-	fprintf(stderr, "  current : (%c)\n", p->buffer[p->count]);
+	// fprintf(stderr, "  count   : %d\n", p->count);
+	// fprintf(stderr, "  buffer  : >>>\n%s\n>>>\n", p->buffer + p->count);
+	// fprintf(stderr, "  current : (%c)\n", p->buffer[p->count]);
 }
 
 int toml_init(node **root) {
