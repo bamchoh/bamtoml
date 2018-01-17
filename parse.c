@@ -1989,6 +1989,13 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 	int ignore = FALSE;
 	int j = 0;
 	for(int i = 0; i < len; i++) {
+		if(i == 0) {
+			if(str[i] == '\n') {
+				i++;
+			}else if (str[i] == '\r' && str[i+1] == '\n') {
+				i+=2;
+			}
+		}
 		if(str[i] == '\\') {
 			int c1 = str[i+1];
 			if(c1 == '\n') {
