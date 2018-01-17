@@ -1985,7 +1985,7 @@ node *n = node_alloc();
 }
 
 node *new_node_mulstr(parser_state *p, char *str, int len) {
-	char *tmp = (char*)malloc(sizeof(char));
+	char *tmp = (char*)malloc(len * sizeof(char));
 	int ignore = FALSE;
 	int j = 0;
 	for(int i = 0; i < len; i++) {
@@ -2018,6 +2018,7 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 		tmp[j] = str[i];
 		j++;
 	}
+	tmp[j] = '\0';
 	node *n = new_node_str(p, tmp, j);
 	free(tmp);
 	return n;
