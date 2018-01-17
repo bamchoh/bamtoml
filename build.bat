@@ -17,6 +17,7 @@ if "%1" == "test" (
   toml-test test key-special-chars
   toml-test test long-integer
   toml-test test long-float
+	toml-test test string-escapes
   toml-test test multiline-string
 )
 

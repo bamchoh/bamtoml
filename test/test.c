@@ -11,6 +11,15 @@
 #include "toml_tbl.h"
 #include "toml.h"
 
+#if defined(_WIN32)
+# include <windows.h>
+# include <io.h>
+#ifdef _MSC_VER
+# define isatty(x) _isatty(x)
+# define fileno(x) _fileno(x)
+#endif
+#endif
+
 #ifndef _WIN32
 #define _fdopen fdopen
 #endif
@@ -40,6 +49,90 @@ char* readall() {
 	return buffer;
 }
 
+static void
+printstr(char *str)
+{
+	char *newstr;
+	int j = 0;
+	int i = 0;
+	for(i = 0;str[i];i++,j++) {
+		switch(str[i]) {
+			case '"':
+			case '\\':
+			case '/':
+			case '\b':
+			case '\f':
+			case '\n':
+			case '\r':
+			case '\t':
+				j++;
+		}
+	}
+
+	newstr = malloc(i+j+1);
+	for(i=0,j=0;str[i];i++,j++)
+	{
+		switch(str[i]) {
+			case '"':
+				newstr[j++] = '\\';
+				newstr[j] = '"';
+				break;
+			case '\\':
+				newstr[j++] = '\\';
+				newstr[j] = '\\';
+				break;
+			case '/':
+				newstr[j++] = '\\';
+				newstr[j] = '/';
+				break;
+			case '\b':
+				newstr[j++] = '\\';
+				newstr[j] = 'b';
+				break;
+			case '\f':
+				newstr[j++] = '\\';
+				newstr[j] = 'f';
+				break;
+			case '\n':
+				newstr[j++] = '\\';
+				newstr[j] = 'n';
+				break;
+			case '\r':
+				newstr[j++] = '\\';
+				newstr[j] = 'r';
+				break;
+			case '\t':
+				newstr[j++] = '\\';
+				newstr[j] = 't';
+				break;
+			default:
+				newstr[j] = str[i];
+				break;
+		}
+	}
+	newstr[j] = '\0';
+#if defined(_WIN32)
+  if (isatty(fileno(stdout))) {
+    DWORD written;
+    char* utf8 = newstr;
+    int mlen = j;
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, utf8, mlen, NULL, 0);
+    wchar_t* utf16 = (wchar_t*)malloc((wlen+1) * sizeof(wchar_t));
+    if (utf16 == NULL) return;
+    if (MultiByteToWideChar(CP_UTF8, 0, utf8, mlen, utf16, wlen) > 0) {
+      utf16[wlen] = 0;
+      WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE),
+          utf16, wlen, &written, NULL);
+    }
+    free(utf16);
+  } else
+#endif
+    fwrite(newstr, j, 1, stdout);
+  fflush(stdout);
+	free(newstr);
+}
+
+
 void print_json(node *root) {
 	toml_table *tbl = (toml_table *)root->value.p;
 	printf("{");
@@ -50,7 +143,9 @@ void print_json(node *root) {
 		switch(tbl->v[i]->type) {
 			case TOML_STRING: {
 				toml_string *tmp2 = (toml_string *)tbl->v[i]->value.p;
-				printf("\"%s\": { \"type\": \"%s\", \"value\": \"%s\" }", tbl->k[i], "string", tmp2->s);
+				printf("\"%s\": { \"type\": \"%s\", \"value\": \"",tbl->k[i], "string");
+				printstr(tmp2->s);
+				printf("\" }");
 				break;
 			}
 			case TOML_BOOL:

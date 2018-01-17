@@ -1836,10 +1836,19 @@ node *new_node_bool(int b) {
 	return n;
 }
 
-long utf16toutf32(long val) {
+long utf16toUtf32(long val) {
+	unsigned long hu16 =  0xFFFF & (val >> 16);
+	unsigned long lu16 = (0xFFFF & val);
+	if(hu16 < 0xD800 || 0xDBFF < hu16) {
+		return -1;
+	}
+	if(lu16 < 0xDC00 || 0xDFFF < lu16) {
+		return -1;
+	}
+	return 0x10000 + ((0x3FF & hu16) * 0x400) + (0x3FF & lu16);
 }
 
-int utf32toutf8(long val, char *t, int *j) {
+int utf32toUtf8(long val, char *t, int *j) {
 	if(val < 0 || val > 0x10FFFF) {
 		return FALSE;
 	}
@@ -1849,7 +1858,6 @@ int utf32toutf8(long val, char *t, int *j) {
 	if(val < 0x80) {
 		utf8[0] = (char)val;
 		len = 1;
-		printf("%s\n",t+*j-1);
 	} else if (val < 2048) {
 		utf8[0] = (char)(0xC0 | (val >> 6));
 		utf8[1] = (char)(0x80 | (val & 0x3F));
@@ -1932,7 +1940,7 @@ node *new_node_str(parser_state *p, char *str, int len) {
 				if(val < 0 || 0xD800 <= val) {
 					yyerror(p,"invalid escape string");
 				}
-				utf32toutf8(val,t,&j);
+				utf32toUtf8(val,t,&j);
 				i+=4;
 				break;
 			case 'U':
@@ -1943,12 +1951,15 @@ node *new_node_str(parser_state *p, char *str, int len) {
 				}
 				val = read_escape_unicode(str+i+1,8);
 				if(0 < val && val < 0xD800) {
-					utf32toutf8(val,t,&j);
-				} else if(0xFFFF < val && val < 0x10FFFF) {
-					val = utf16toutf32(val);
-					utf32toutf8(val,t,&j);
+					utf32toUtf8(val,t,&j);
+				} else {
+					val = utf16toUtf32(val);
+					if(0xFFFF < val && val < 0x120000) {
+						utf32toUtf8(val,t,&j);
+					} else {
+						yyerror(p,"invalid escape string");
+					}
 				}
-				printf("%08X\n",val);
 				i+=8;
 				break;
 			default:
@@ -2000,7 +2011,6 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 		tmp[j] = str[i];
 		j++;
 	}
-	printf("tmp:(%d)%s\n",j,tmp);
 	node *n = new_node_str(p, tmp, j);
 	free(tmp);
 	return n;
@@ -2046,7 +2056,6 @@ retry:
 		return tFLOAT;
 	}
 	if(parser_is_multi_string(p) == TRUE) {
-		printf("text:(%d)%.*s\n", p->tlen,p->tlen, p->token);
 		yylval = new_node_mulstr(p,p->token+3, p->tlen-6);
 		return VAL_STRING;
 	}
