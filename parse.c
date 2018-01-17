@@ -173,6 +173,15 @@ int peekc(parser_state *p) {
 int parse_key_string(parser_state *p) {
 }
 
+int is_term2(char *s) {
+	char c1 = s[0];
+	char c2 = s[1];
+	if(c1 == EOF || c1 == ' ' || c1 == '\n' || (c1 == '\r' && c2 == '\n')) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
 int is_term(parser_state *p, char c) {
 	if(c == EOF || c == ' ' || c == '\n' || (c == '\r' && peekc(p) == '\n')) {
 		return TRUE;
@@ -181,7 +190,7 @@ int is_term(parser_state *p, char c) {
 }
 
 
-#line 185 "parse.c" /* yacc.c:339  */
+#line 194 "parse.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -237,7 +246,7 @@ int yyparse (parser_state *p);
 
 /* Copy the second part of user declarations.  */
 
-#line 241 "parse.c" /* yacc.c:358  */
+#line 250 "parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -535,8 +544,8 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   130,   130,   131,   133,   134,   136,   143,   144,   145,
-     146,   161,   162,   163,   164
+       0,   139,   139,   140,   142,   143,   145,   152,   153,   154,
+     155,   170,   171,   172,   173
 };
 #endif
 
@@ -1312,18 +1321,18 @@ yyreduce:
   switch (yyn)
     {
         case 6:
-#line 136 "parse.y" /* yacc.c:1646  */
+#line 145 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *str = (yyvsp[-2])->value.p;
 					add_kv_to_tbl(p->node_tree->value.p, str->s, (yyvsp[0]));
 					free(str);
 					free((yyvsp[-2]));
 				}
-#line 1323 "parse.c" /* yacc.c:1646  */
+#line 1332 "parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 146 "parse.y" /* yacc.c:1646  */
+#line 155 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *s = (toml_string *)malloc(sizeof(toml_string));
 					if((yyvsp[0])->value.i != 0) {
@@ -1338,11 +1347,11 @@ yyreduce:
 					(yyvsp[0])->type = TOML_STRING;
 					(yyvsp[0])->value.p = s;
 				}
-#line 1342 "parse.c" /* yacc.c:1646  */
+#line 1351 "parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 1346 "parse.c" /* yacc.c:1646  */
+#line 1355 "parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1570,7 +1579,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 169 "parse.y" /* yacc.c:1906  */
+#line 178 "parse.y" /* yacc.c:1906  */
 
 
 int parser_is_whitespace(parser_state *p) {
@@ -1991,9 +2000,10 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 	for(int i = 0; i < len; i++) {
 		if(i == 0) {
 			if(str[i] == '\n') {
-				i++;
+				continue;
 			}else if (str[i] == '\r' && str[i+1] == '\n') {
-				i+=2;
+				i+=1;
+				continue;
 			}
 		}
 		if(str[i] == '\\') {
@@ -2011,7 +2021,7 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 			}
 			ignore = FALSE;
 		}
-		if(ignore == TRUE && str[i] == ' ') {
+		if(ignore == TRUE && is_term2(str+i)) {
 			continue;
 		}
 		ignore = FALSE;

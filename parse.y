@@ -108,6 +108,15 @@ int peekc(parser_state *p) {
 int parse_key_string(parser_state *p) {
 }
 
+int is_term2(char *s) {
+	char c1 = s[0];
+	char c2 = s[1];
+	if(c1 == EOF || c1 == ' ' || c1 == '\n' || (c1 == '\r' && c2 == '\n')) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
 int is_term(parser_state *p, char c) {
 	if(c == EOF || c == ' ' || c == '\n' || (c == '\r' && peekc(p) == '\n')) {
 		return TRUE;
@@ -586,9 +595,10 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 	for(int i = 0; i < len; i++) {
 		if(i == 0) {
 			if(str[i] == '\n') {
-				i++;
+				continue;
 			}else if (str[i] == '\r' && str[i+1] == '\n') {
-				i+=2;
+				i+=1;
+				continue;
 			}
 		}
 		if(str[i] == '\\') {
@@ -606,7 +616,7 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 			}
 			ignore = FALSE;
 		}
-		if(ignore == TRUE && str[i] == ' ') {
+		if(ignore == TRUE && is_term2(str+i)) {
 			continue;
 		}
 		ignore = FALSE;
