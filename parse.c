@@ -67,14 +67,31 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include "toml_tbl.h"
 #include "toml_str.h"
 #include "toml_float.h"
 #include "toml.h"
 #include "limits.h"
 
+#define ISALPHA(c) ((((unsigned)(c) | 0x20) - 'a') < 26)
 #define ISDIGIT(c) (((unsigned)(c) - '0') < 10)
 #define ISXDIGIT(c) (ISDIGIT(c) || ((unsigned)(c) | 0x20) - 'a' < 6)
+
+typedef struct toml_parser_state {
+	char *s, *send;
+	unsigned int column;
+	unsigned int count;
+	unsigned int lineno;
+	unsigned int tlen;
+	int precision;
+	char* token;
+	node* node_tree;
+	node* current;
+} parser_state;
+
+static void tokadd(parser_state *p, int32_t c);
+static void backc(parser_state *p);
 
 int toml_node_free(node *n);
 
@@ -127,42 +144,62 @@ node *root_node_new() {
 	return n;
 }
 
-typedef struct toml_parser_state {
-	char* buffer;
-	unsigned int count;
-	unsigned int tlen;
-	int precision;
-	char* token;
-	node* node_tree;
-	node* current;
-} parser_state;
-
 #define YYSTYPE node*
 
 int yylex(parser_state *p);
 void yyerror(parser_state *p, const char* s);
 int yyparse(parser_state *p);
 
-int nextc(parser_state *p) {
+static inline int
+nextc(parser_state *p)
+{
 	int c;
-	if(strlen(p->buffer) > p->count) {
-		c = p->buffer[p->count];
-		p->count++;
-		if(c != 0) {
-			return c;
-		}
+	if(!p->s || p->s >= p->send) {
+		return EOF;
 	}
-	return EOF;
+	else {
+		c = (unsigned char)*p->s++;
+	}
+	if (c >= 0) {
+		p->column++;
+	}
+	if(c == '\r') {
+		c = nextc(p);
+		if(c != '\n') {
+			backc(p);
+			return '\r';
+		}
+		return c;
+	}
+	return c;
 }
 
-void pushback(parser_state *p) {
-	p->count--;
+static void
+backc(parser_state *p) {
+	p->column--;
+	p->s--;
+}
+
+static void
+skip(parser_state *p, char term)
+{
+	int c;
+
+	for(;;) {
+		c = nextc(p);
+		if (c < 0) break;
+		if (c == term) break;
+	}
+}
+
+static void
+tokadd(parser_state *p, int32_t c) {
 }
 
 int peekc(parser_state *p) {
 	int c;
-	if(strlen(p->buffer) > p->count) {
-		c = p->buffer[p->count];
+	if(strlen(p->s) > p->count) {
+		c = p->s[p->count];
 		if(c != 0) {
 			return c;
 		}
@@ -190,7 +227,7 @@ int is_term(parser_state *p, char c) {
 }
 
 
-#line 194 "parse.c" /* yacc.c:339  */
+#line 231 "parse.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -225,8 +262,9 @@ extern int yydebug;
     KEY_STRING = 258,
     VAL_STRING = 259,
     tINT = 260,
-    tBOOL = 261,
-    tFLOAT = 262
+    tTrue = 261,
+    tFalse = 262,
+    tFLOAT = 263
   };
 #endif
 
@@ -246,7 +284,7 @@ int yyparse (parser_state *p);
 
 /* Copy the second part of user declarations.  */
 
-#line 250 "parse.c" /* yacc.c:358  */
+#line 288 "parse.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -488,21 +526,21 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  2
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   12
+#define YYLAST   14
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  10
+#define YYNTOKENS  11
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  6
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  14
+#define YYNRULES  16
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  18
+#define YYNSTATES  20
 
 /* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
    by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   262
+#define YYMAXUTOK   263
 
 #define YYTRANSLATE(YYX)                                                \
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -512,12 +550,12 @@ union yyalloc
 static const yytype_uint8 yytranslate[] =
 {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       8,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       9,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     9,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,    10,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -537,15 +575,15 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
-       5,     6,     7
+       5,     6,     7,     8
 };
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   139,   139,   140,   142,   143,   145,   152,   153,   154,
-     155,   170,   171,   172,   173
+       0,   177,   177,   178,   180,   181,   183,   190,   191,   192,
+     193,   200,   208,   209,   210,   211,   212
 };
 #endif
 
@@ -555,8 +593,8 @@ static const yytype_uint8 yyrline[] =
 static const char *const yytname[] =
 {
   "$end", "error", "$undefined", "KEY_STRING", "VAL_STRING", "tINT",
-  "tBOOL", "tFLOAT", "'\\n'", "'='", "$accept", "program", "line", "expr",
-  "key_lit", "val_lit", YY_NULLPTR
+  "tTrue", "tFalse", "tFLOAT", "'\\n'", "'='", "$accept", "program",
+  "line", "expr", "key_lit", "val_lit", YY_NULLPTR
 };
 #endif
 
@@ -565,14 +603,15 @@ static const char *const yytname[] =
    (internal) symbol number NUM (which must be that of a token).  */
 static const yytype_uint16 yytoknum[] =
 {
-       0,   256,   257,   258,   259,   260,   261,   262,    10,    61
+       0,   256,   257,   258,   259,   260,   261,   262,   263,    10,
+      61
 };
 # endif
 
-#define YYPACT_NINF -8
+#define YYPACT_NINF -9
 
 #define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-8)))
+  (!!((Yystate) == (-9)))
 
 #define YYTABLE_NINF -1
 
@@ -583,8 +622,8 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-      -8,     0,    -8,    -8,    -8,    -8,    -8,    -8,    -8,    -7,
-      -2,    -8,     5,    -8,    -8,    -8,    -8,    -8
+      -9,     0,    -9,    -9,    -9,    -9,    -9,    -9,    -9,    -9,
+      -8,    -2,    -9,     6,    -9,    -9,    -9,    -9,    -9,    -9
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -592,20 +631,20 @@ static const yytype_int8 yypact[] =
      means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       2,     0,     1,     7,     8,     9,    10,     4,     3,     0,
-       0,     5,     0,    11,    12,    13,    14,     6
+       2,     0,     1,     7,     8,     9,    10,    11,     4,     3,
+       0,     0,     5,     0,    12,    13,    14,    15,    16,     6
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-      -8,    -8,    -8,    -8,    -8,    -8
+      -9,    -9,    -9,    -9,    -9,    -9
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-      -1,     1,     8,     9,    10,    17
+      -1,     1,     9,    10,    11,    19
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -613,36 +652,36 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_uint8 yytable[] =
 {
-       2,    11,     0,     3,     4,     5,     6,    12,     7,    13,
-      14,    15,    16
+       2,    12,     0,     3,     4,     5,     6,     7,    13,     8,
+      14,    15,    16,    17,    18
 };
 
 static const yytype_int8 yycheck[] =
 {
-       0,     8,    -1,     3,     4,     5,     6,     9,     8,     4,
-       5,     6,     7
+       0,     9,    -1,     3,     4,     5,     6,     7,    10,     9,
+       4,     5,     6,     7,     8
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    11,     0,     3,     4,     5,     6,     8,    12,    13,
-      14,     8,     9,     4,     5,     6,     7,    15
+       0,    12,     0,     3,     4,     5,     6,     7,     9,    13,
+      14,    15,     9,    10,     4,     5,     6,     7,     8,    16
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    10,    11,    11,    12,    12,    13,    14,    14,    14,
-      14,    15,    15,    15,    15
+       0,    11,    12,    12,    13,    13,    14,    15,    15,    15,
+      15,    15,    16,    16,    16,    16,    16
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
        0,     2,     0,     2,     1,     2,     3,     1,     1,     1,
-       1,     1,     1,     1,     1
+       1,     1,     1,     1,     1,     1,     1
 };
 
 
@@ -1321,37 +1360,42 @@ yyreduce:
   switch (yyn)
     {
         case 6:
-#line 145 "parse.y" /* yacc.c:1646  */
+#line 183 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *str = (yyvsp[-2])->value.p;
 					add_kv_to_tbl(p->node_tree->value.p, str->s, (yyvsp[0]));
 					free(str);
 					free((yyvsp[-2]));
 				}
-#line 1332 "parse.c" /* yacc.c:1646  */
+#line 1371 "parse.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 155 "parse.y" /* yacc.c:1646  */
+#line 193 "parse.y" /* yacc.c:1646  */
     {
 					toml_string *s = (toml_string *)malloc(sizeof(toml_string));
-					if((yyvsp[0])->value.i != 0) {
-						s->s = (char *)malloc(5 + sizeof(char));
-						memcpy(s->s, "true", 5);
-						s->i = strlen(s->s);
-					} else {
-						s->s = (char *)malloc(6 + sizeof(char));
-						memcpy(s->s, "false", 6);
-						s->i = strlen(s->s);
-					}
+					s->s = "true";
+					s->i = 5;
 					(yyvsp[0])->type = TOML_STRING;
 					(yyvsp[0])->value.p = s;
 				}
-#line 1351 "parse.c" /* yacc.c:1646  */
+#line 1383 "parse.c" /* yacc.c:1646  */
+    break;
+
+  case 11:
+#line 200 "parse.y" /* yacc.c:1646  */
+    {
+					toml_string *s = (toml_string *)malloc(sizeof(toml_string));
+					s->s = "false";
+					s->i = 6;
+					(yyvsp[0])->type = TOML_STRING;
+					(yyvsp[0])->value.p = s;
+				}
+#line 1395 "parse.c" /* yacc.c:1646  */
     break;
 
 
-#line 1355 "parse.c" /* yacc.c:1646  */
+#line 1399 "parse.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1579,17 +1623,8 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 178 "parse.y" /* yacc.c:1906  */
+#line 217 "parse.y" /* yacc.c:1906  */
 
-
-int parser_is_whitespace(parser_state *p) {
-	int c = nextc(p);
-	if(c == ' ' || (c == '\r' && peekc(p) == '\n')) {
-		return TRUE;
-	}
-	pushback(p);
-	return FALSE;
-}
 
 int parser_is_equal(parser_state *p) {
 	return peekc(p) == '=' ? TRUE : FALSE;
@@ -1601,7 +1636,7 @@ int parser_is_endline(parser_state *p) {
 
 int parser_is_key_string(parser_state *p) {
 	int pos = p->count;
-	p->token = p->buffer + p->count;
+	p->token = p->s + p->count;
 	int c;
 	while(1) {
 		c = nextc(p);
@@ -1612,7 +1647,7 @@ int parser_is_key_string(parser_state *p) {
 			continue;
 		}
 		if(is_term(p,c) == TRUE || c == '=') {
-			pushback(p);
+			backc(p);
 			p->tlen = p->count - pos;
 			return TRUE;
 		}
@@ -1623,11 +1658,11 @@ int parser_is_key_string(parser_state *p) {
 
 int parser_is_multi_string(parser_state *p) {
 	int pos = p->count;
-	p->token = p->buffer+p->count;
+	p->token = p->s+p->count;
 	if(strncmp((p->token),"\"\"\"", 3) == 0) {
 		p->count+=3;
 		while(peekc(p) != EOF) {
-			if(strncmp(p->buffer+p->count,"\"\"\"", 3) == 0) {
+			if(strncmp(p->s+p->count,"\"\"\"", 3) == 0) {
 				p->count+=3;
 				p->tlen = p->count - pos;
 				return TRUE;
@@ -1641,7 +1676,7 @@ int parser_is_multi_string(parser_state *p) {
 int parser_is_string(parser_state *p) {
 	int c;
 	int pos = p->count;
-	p->token = p->buffer + p->count;
+	p->token = p->s + p->count;
 	int esc = FALSE;
 	if(nextc(p) == '"') {
 		while(1) {
@@ -1657,7 +1692,7 @@ int parser_is_string(parser_state *p) {
 				case '"':
 					continue;
 				}
-				pushback(p);
+				backc(p);
 			}
 			if(c == '\n') {
 				p->tlen = 0;
@@ -1681,10 +1716,10 @@ int parser_tokencmp(parser_state *p, char *lit, int len) {
 		c = nextc(p);
 		if(is_term(p,c) == TRUE) {
 			p->tlen = len;
-			pushback(p);
+			backc(p);
 			return TRUE;
 		}
-		pushback(p);
+		backc(p);
 		return FALSE;
 	}
 	return FALSE;
@@ -1693,7 +1728,7 @@ int parser_tokencmp(parser_state *p, char *lit, int len) {
 int parser_is_bool(parser_state *p) {
 	char c;
 	int pos = p->count;
-	p->token = p->buffer + p->count;
+	p->token = p->s + p->count;
 	if(parser_tokencmp(p,"true",4) == TRUE) {
 		return TRUE;
 	}
@@ -1706,17 +1741,17 @@ int parser_is_bool(parser_state *p) {
 
 int parser_is_number(parser_state *p, int *found_dot) {
 	int prevc = -1;
-	p->token = p->buffer + p->count;
+	p->token = p->s + p->count;
 	int c = nextc(p);
 	if(c == '0' || c == '_' || c == '.' ) {
-		pushback(p);
+		backc(p);
 		return FALSE;
 	}
 	if(c == '+' || c == '-' || ISDIGIT(c) != 0 ) {
 		prevc = c;
 		for(int i = 1;(c = nextc(p)) != EOF;i++) {
 			if(is_term(p,c) == TRUE) {
-				pushback(p);
+				backc(p);
 				return TRUE;
 			}
 			if(c == '_' && ISDIGIT(prevc) != 0 && ISDIGIT(peekc(p)) != 0) {
@@ -1746,7 +1781,7 @@ int parser_is_number(parser_state *p, int *found_dot) {
 			return FALSE;
 		}
 	}
-	pushback(p);
+	backc(p);
 	return FALSE;
 }
 
@@ -2035,33 +2070,83 @@ node *new_node_mulstr(parser_state *p, char *str, int len) {
 }
 
 int yylex(parser_state *p) {
-	int c;
+	int32_t c;
 retry:
-		 if(peekc(p) == EOF) {
-		return nextc(p);
-	}
-	if(parser_is_whitespace(p) == TRUE) {
+	c = nextc(p);
+	printf("%c(%02X)\n",c,c);
+	switch(c) {
+	case '\0': /* NUL */
+	case -1: /* end of script */
+		return 0;
+	
+	/* white spaces */
+	case ' ': case '\r':
 		goto retry;
+
+	case '#':  /* it's a comment */
+		skip(p, '\n');
+		/* fall through */
+	case '\n':
+		p->lineno++;
+		p->column = 0;
+		return '\n';
+	case '=':
+		return c;
+	case '_':
+		// tBareKey
+		goto barekey;
+	case '+':
+		// tINT
+		tokadd(p,c);
+		return c;
+	case '-':
+		// tINT / tFloat / tBareKey
+		return c;
+	default:
+		break;
 	}
-	if(parser_is_equal(p) == TRUE) {
-		return nextc(p);
+	if(ISDIGIT(c)) {
+		// tINT / tFloat / tDate / tBareKey
 	}
-	if(parser_is_endline(p) == TRUE) {
-		return nextc(p);
-	}
-	if(parser_is_bool(p) == TRUE) {
-		node *n;
-		if(*(p->token) == 't') {
-			n = new_node_bool(TRUE);
-		} else {
-			n = new_node_bool(FALSE);
+	if(ISALPHA(c)) {
+		// tBool / tFloat / tBareKey
+		if(c == 't') {
+			// tTrue / tBareKey
+			if((c = nextc(p)) == 'r') {
+				if((c = nextc(p)) == 'u') {
+					if((c = nextc(p)) == 'e') {
+						c = nextc(p);
+						if(!(ISALPHA(c) || c == '_' || c == '-')) {
+							// tTrue
+							backc(p);
+							return tTrue;
+						}
+						backc(p);
+					}
+					backc(p);
+				}
+				backc(p);
+			}
+			backc(p);
+			goto barekey;
 		}
-		if(n == NULL) {
-			fprintf(stderr, "check_bool error\n");
-			return 0;
+		if(c == 'f') {
+			// tFalse / tBareKey
+			if(strncmp(p->s,"alse",4) == 0) {
+				p->s += 4;
+				c = nextc(p);
+				if(ISALPHA(c) || c == '_' || c == '-') {
+					// tBareKey
+					goto barekey;
+				} else {
+					// tFalse
+					backc(p);
+					return tTrue;
+				}
+			} else {
+				goto barekey;
+			}
 		}
-		yylval = n;
-		return tBOOL;
 	}
 	if(parser_is_int(p) == TRUE) {
 		long long l = conv_ttol(p->token, p->tlen);
@@ -2083,6 +2168,7 @@ retry:
 		yylval = n;
 		return VAL_STRING;
 	}
+barekey:
 	if(parser_is_key_string(p) == TRUE) {
 		yylval = new_node_str(p, p->token, p->tlen);
 		return KEY_STRING;
@@ -2097,8 +2183,8 @@ void yyerror(parser_state *p, const char* s)
 {
 	fprintf(stderr, "error: %s\n", s);
 	// fprintf(stderr, "  count   : %d\n", p->count);
-	// fprintf(stderr, "  buffer  : >>>\n%s\n>>>\n", p->buffer + p->count);
-	// fprintf(stderr, "  current : (%c)\n", p->buffer[p->count]);
+	// fprintf(stderr, "  s  : >>>\n%s\n>>>\n", p->s + p->count);
+	// fprintf(stderr, "  current : (%c)\n", p->s[p->count]);
 }
 
 int toml_init(node **root) {
@@ -2112,7 +2198,10 @@ int toml_init(node **root) {
 
 int toml_parse(node *root, char* buf, int len) {
 	parser_state p;
-	p.buffer = buf;
+	p.s = buf;
+	p.send = buf + len;
+	p.column = 0;
+	p.lineno = 0;
 	p.count = 0;
 	p.token = NULL;
 	p.node_tree = root;
